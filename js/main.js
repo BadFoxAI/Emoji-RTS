@@ -121,8 +121,8 @@ document.addEventListener('DOMContentLoaded', () => {
  * Initializes JSRTSMenu instances.
  */
 function initializeMenus() {
-    globalCooldownManagerInstance = new CooldownManager(); // From menu.js
-    commandCardMenu = new JSRTSMenu('command-card-menu-actual-container', globalCooldownManagerInstance); // Class from menu.js
+    globalCooldownManagerInstance = new CooldownManager(); 
+    commandCardMenu = new JSRTSMenu('command-card-menu-actual-container', globalCooldownManagerInstance); 
     contextMenu = new JSRTSMenu('context-menu-actual-container', globalCooldownManagerInstance);
 }
 
@@ -130,9 +130,6 @@ function initializeMenus() {
 
 /**
  * Configures and starts a new game based on player/AI choices.
- * @param {string} mode - 'human_vs_ai' or 'ai_vs_ai'.
- * @param {string} p1Key - Faction key for player 1.
- * @param {string|null} [p2KeyIfAiVsAi=null] - Faction key for player 2 if AI vs AI.
  */
 function startGameWithOptions(mode, p1Key, p2KeyIfAiVsAi = null) {
     gameMode = mode; 
@@ -536,10 +533,11 @@ function gameHandleContextMenu(event) {
     const worldPos = viewportToWorld(event.clientX, event.clientY);
     const clickedOnGameObject = event.target.closest('.game-object');
     let builderFn = null;
+    let commandIssued = false; // Flag to see if a direct command was issued
     let contextData = { worldPos, eventTarget: event.target, clickedOnGameObject };
 
     if (selectedUnit && selectedUnit.faction === playerFactionKey) {
-        event.preventDefault(); 
+        event.preventDefault(); // Assume we will do something, either direct command or menu
         
         if (clickedOnGameObject) {
             const targetUnitData = units.find(u => u.element === clickedOnGameObject && u.hp > 0);
@@ -547,28 +545,43 @@ function gameHandleContextMenu(event) {
             const targetResourceData = resources.find(r => r.element === clickedOnGameObject);
             const targetConstructionData = constructions.find(c => c.element === clickedOnGameObject);
 
-            if (targetUnitData && targetUnitData.faction !== playerFactionKey) { 
-                if (selectedUnit.attackDamage > 0) { builderFn = (ctxData) => buildAttackContextMenu(ctxData, targetUnitData); }
-                else { builderFn = buildMoveContextMenu; }
-            } else if (targetBuildingData && targetBuildingData.faction !== playerFactionKey) { 
-                 if (selectedUnit.attackDamage > 0) { builderFn = (ctxData) => buildAttackContextMenu(ctxData, targetBuildingData); }
-                 else { builderFn = buildMoveContextMenu; }
-            } else if (targetResourceData && selectedUnit.unitType === 'worker') { 
-                if (!(targetResourceData.type === 'mine' && targetResourceData.health <= 0)) {
-                    builderFn = (ctxData) => buildHarvestContextMenu(ctxData, targetResourceData);
-                } else { builderFn = buildMoveContextMenu; }
-            } else if (targetConstructionData && targetConstructionData.faction === playerFactionKey && selectedUnit.canBuild) { 
-                 if (!targetConstructionData.assignedWorker || targetConstructionData.assignedWorker === selectedUnit) {
-                    builderFn = (ctxData) => buildAssistConstructionContextMenu(ctxData, targetConstructionData);
-                } else { builderFn = buildMoveContextMenu; }
-            } else if (targetBuildingData && targetBuildingData.buildingType === 'base' && targetBuildingData.faction === playerFactionKey && selectedUnit.resourceType) { 
-                builderFn = (ctxData) => buildReturnResourceContextMenu(ctxData);
-            } else { // Default to move if no specific interaction defined for this target type
-                builderFn = buildMoveContextMenu; 
+            // PRIORITY 1: ATTACK HOSTILE
+            if ((targetUnitData && targetUnitData.faction !== playerFactionKey) || (targetBuildingData && targetBuildingData.faction !== playerFactionKey)) {
+                if (selectedUnit.attackDamage > 0) {
+                    const targetBox = getElementWorldBoundingBox(targetUnitData?.element || targetBuildingData.element);
+                    issueCommand(selectedUnit, { state: 'moving_to_attack', targetElement: targetUnitData?.element || targetBuildingData.element, target: { x: targetBox.centerX, y: targetBox.centerY } });
+                    commandIssued = true;
+                }
+            } 
+            // PRIORITY 2: WORKER ACTIONS
+            else if (selectedUnit.unitType === 'worker' && !commandIssued) { // Check if not already issued attack
+                if (targetResourceData && !(targetResourceData.type === 'mine' && targetResourceData.health <= 0)) {
+                    const targetBox = getElementWorldBoundingBox(targetResourceData.element);
+                    issueCommand(selectedUnit, { state: 'moving_to_resource', targetElement: targetResourceData.element, target: { x: targetBox.centerX, y: targetBox.centerY }, preferredType: targetResourceData.type });
+                    commandIssued = true;
+                } else if (targetConstructionData && targetConstructionData.faction === playerFactionKey && selectedUnit.canBuild && (!targetConstructionData.assignedWorker || targetConstructionData.assignedWorker === selectedUnit)) {
+                    assignWorkerToConstruction(targetConstructionData, selectedUnit, false); 
+                    commandIssued = true; // assignWorkerToConstruction issues its own move command
+                } else if (targetBuildingData && targetBuildingData.buildingType === 'base' && targetBuildingData.faction === playerFactionKey && selectedUnit.resourceType) {
+                     const targetBox = getElementWorldBoundingBox(targetBuildingData.element);
+                     issueCommand(selectedUnit, { state: 'returning', targetElement: targetBuildingData.element, target: { x: targetBox.centerX, y: targetBox.centerY } });
+                     commandIssued = true;
+                }
             }
-        } else { // Clicked on empty ground
-            builderFn = buildMoveContextMenu; 
         }
+
+        // If no specific direct command was issued, default to move or show context menu for other options
+        if (!commandIssued) {
+            // If clicked on an interactable but no default action, or for more options, build a menu.
+            // For now, if no specific interaction, default to move.
+            // A more complex system could have builderFn determined here for less common interactions.
+            issueCommand(selectedUnit, { state: 'moving', target: worldPos, targetElement: null });
+            // Example: If you want a menu for "Follow friendly unit" or "Repair friendly building":
+            // if (targetUnitData && targetUnitData.faction === playerFactionKey && targetUnitData !== selectedUnit) {
+            //    builderFn = (ctxData) => buildFollowMenu(ctxData, targetUnitData);
+            // } else { /* default move */ }
+        }
+
     } else if (!selectedUnit && clickedOnGameObject) { // No unit selected, but right-clicked on a game object
         event.preventDefault(); // Prevent browser context menu
         const targetUnitData = units.find(u => u.element === clickedOnGameObject && u.hp > 0 && u.faction === playerFactionKey);
@@ -579,15 +592,15 @@ function gameHandleContextMenu(event) {
         else if (targetBuildingData) { handleBuildingClick(targetBuildingData); }
         else if (targetConstructionSite) { handleBuildingClick(targetConstructionSite); } 
         return; // Don't show a context menu if we just selected something
-    } else { 
-        // No unit selected, clicked on empty ground. Do nothing, allow browser context menu or no action.
-        return; 
-    }
+    } 
+    // If no unit selected and clicked on empty ground, do nothing (allow browser default or no action).
 
-    if (builderFn) {
-        contextMenu.showRoot({ x: event.clientX, y: event.clientY }, () => builderFn(contextData), event.target);
-    }
+    // If a builderFn was set for less common actions (not implemented in this pass)
+    // if (builderFn && contextMenu) {
+    //     contextMenu.showRoot({ x: event.clientX, y: event.clientY }, () => builderFn(contextData), event.target);
+    // }
 }
+
 
 function handleGlobalKeyDown(e) {
     if (e.defaultPrevented && (contextMenu?.isVisible || commandCardMenu?.isVisible)) {
@@ -623,12 +636,12 @@ function handleGlobalKeyDown(e) {
                     if (isDebugVisible) console.log(`MAIN.JS: Global hotkey - Train ${unitTypeToTrain} from ${selectedBuilding.buildingType}`);
                     trainUnit(unitTypeToTrain, selectedBuilding); 
                     updateCommandCard(); 
-                    e.preventDefault(); return;
+                    e.preventDefault(); e.stopPropagation(); return;
                 }
             }
         } else if (selectedUnit && selectedUnit.unitType === 'worker' && selectedUnit.faction === playerFactionKey) {
             if (key === 'b') { // Worker's "Build" master hotkey
-                if (isDebugVisible) console.log("MAIN.JS: Global hotkey - Trigger Worker Build Menu (B)");
+                if (isDebugVisible) console.log("MAIN.JS: Global Hotkey - Trigger Worker Build Menu (B)");
                 if (commandCardMenu && commandCardMenu.isVisible) {
                     const buildButtonData = commandCardMenu.buttonsData.find(bd => bd.label.toLowerCase() === "build" && bd.options.opensSubmenu);
                     if (buildButtonData && buildButtonData.callback && !buildButtonData.disabled) { buildButtonData.callback(); }
@@ -639,7 +652,7 @@ function handleGlobalKeyDown(e) {
                          if (buildButtonData && buildButtonData.callback && !buildButtonData.disabled) buildButtonData.callback();
                     }, 50); 
                 }
-                e.preventDefault(); return;
+                e.preventDefault(); e.stopPropagation(); return;
             }
             
             for (const buildingKey in FACTION_DATA[playerFactionKey].buildings) {
@@ -648,18 +661,23 @@ function handleGlobalKeyDown(e) {
                     if (aiCanAffordGeneric(playerFactionKey, buildingKey, false, p1Wood, p1Coal, 0,0) && !placingBuildingType && !placingFarm) {
                         if (isDebugVisible) console.log(`MAIN.JS: Global hotkey - Start placing ${buildingKey}`);
                         startPlacingBuilding(buildingKey); 
-                        e.preventDefault(); return;
+                        e.preventDefault(); e.stopPropagation(); return;
                     } else if (isDebugVisible) {
-                        console.log(`MAIN.JS: Global hotkey - Cannot place ${buildingKey} - cost or already placing.`);
+                        // console.log(`MAIN.JS: Cannot place ${buildingKey} via hotkey - cost/placing`);
                     }
+                    // break; // Found a matching hotkey, even if couldn't execute, so stop checking others.
+                              // Commented out to allow overlapping hotkeys if needed, but generally bad idea.
                 }
             }
         }
 
         if (key === 'escape') {
             if (contextMenu && contextMenu.isVisible) { contextMenu.hide(); e.preventDefault(); return; }
-            // JSRTSMenu's internal Escape listener should handle its own submenus.
-            // If commandCardMenu is visible at its root, it will also be hidden by its own listener if no submenus.
+            // JSRTSMenu's internal Escape listener handles its own submenus.
+            if (commandCardMenu && commandCardMenu.isVisible && commandCardMenu.menuStateStack.length === 0 && !commandCardMenu.searchQuery) { 
+                // If command card is at root and no search is active, Esc can hide it or deselect.
+                // For now, deselectAll handles hiding it.
+            }
             if (placingBuildingType || placingFarm) { if(cancelPlacement) cancelPlacement(); e.preventDefault(); return;}
             else if (selectedUnit || selectedBuilding) { if(deselectAll) deselectAll(); e.preventDefault(); return;}
             else { showMainMenu(); e.preventDefault(); return;} 
@@ -1054,13 +1072,13 @@ function checkAABBOverlap(box1, box2, padding = 0) {
     ); 
 }
 
-// Utility function to calculate current food used by a faction
+// Utility function to calculate current food used by a faction (needed by UI for display and JSRTSMenu builders)
 function calculateCurrentFood(factionKeyToCalc) { 
     if (!FACTION_DATA[factionKeyToCalc] || !FACTION_DATA[factionKeyToCalc].units) return 0;
     return units.reduce((sum, u) => sum + (u.faction === factionKeyToCalc ? (FACTION_DATA[factionKeyToCalc].units[u.unitType]?.foodCost || 0) : 0), 0); 
 }
 
-// Utility function to calculate total food capacity for a faction
+// Utility function to calculate total food capacity for a faction (needed by UI for display and JSRTSMenu builders)
 function calculateFoodCapacity(factionKeyToCalc) { 
     let capacity = 0; 
     if (!FACTION_DATA[factionKeyToCalc] || !FACTION_DATA[factionKeyToCalc].buildings) return STARTING_FOOD_CAP;
@@ -1073,20 +1091,4 @@ function calculateFoodCapacity(factionKeyToCalc) {
         } 
     }); 
     return Math.max(STARTING_FOOD_CAP, capacity); 
-}
-
-// Helper to calculate distance squared (if not available from game-logic.js for some reason, though it should be)
-// This is a fallback / duplication for safety if game-logic.js isn't loaded or distanceSq isn't global.
-// Ideally, this should only be in game-logic.js.
-if (typeof distanceSq === 'undefined') {
-    console.warn("MAIN.JS: distanceSq not found globally, defining a local version.");
-    function distanceSq(pos1, pos2) {
-        if (!pos1 || !pos2 || typeof pos1.x !== 'number' || typeof pos1.y !== 'number' || typeof pos2.x !== 'number' || typeof pos2.y !== 'number') {
-            console.error("MAIN.JS (local distanceSq): Invalid input", pos1, pos2);
-            return Infinity;
-        }
-        const dx = pos1.x - pos2.x;
-        const dy = pos1.y - pos2.y;
-        return dx * dx + dy * dy;
-    }
 }
