@@ -117,8 +117,7 @@ class JSRTSMenu {
         this.searchTimeout = null; 
         // Accessing global isDebugVisible (from game-state.js, loaded later)
         // This will only work if isDebugVisible is truly global (window.isDebugVisible) or passed in.
-        // For now, let's assume it will be defined on window for simplicity in this non-module setup.
-        if(logMessage && logMessage.length > 0 && window.isDebugVisible) { 
+        if(typeof isDebugVisible !== 'undefined' && isDebugVisible && logMessage && logMessage.length > 0) { 
             console.log(logMessage); 
         } 
     }
@@ -127,7 +126,6 @@ class JSRTSMenu {
         document.addEventListener('click', (event) => { 
             if (this.isVisible && !this.container.contains(event.target) && !event.target.closest(`#${this.container.id}`)) { 
                 if (this.triggerElementForCurrentSequence && this.triggerElementForCurrentSequence.contains(event.target)) { return; } 
-                // Special check for command card: if click is inside its panel, don't hide
                 const commandCardPanel = document.getElementById('command-card-container');
                 if (commandCardPanel && commandCardPanel.contains(event.target) && this.container.id === 'command-card-menu-actual-container') {
                      return; 
@@ -144,7 +142,6 @@ class JSRTSMenu {
             const pressedKey = event.key.toLowerCase(); 
             let keyHandledByMenu = false; 
             
-            // 1. Type-ahead Search
             if (event.key.length === 1 && event.key !== ' ' && !event.ctrlKey && !event.metaKey && !event.altKey) { 
                 event.preventDefault(); event.stopPropagation(); 
                 this.searchQuery += pressedKey; this._performSearch(); 
@@ -152,9 +149,7 @@ class JSRTSMenu {
             } 
             if (keyHandledByMenu) return; 
             
-            // 2. Hotkeys for currently visible menu items
             let specificHotkeyMatched = false; 
-            // Allow space for hotkeys if not already handled by activateFocusedItem
             if (this.buttonsData.length > 0 && (event.key.length > 1 || event.key === ' ' || event.ctrlKey || event.altKey || event.metaKey )) { 
                 for (const btnData of this.buttonsData) { 
                     if (btnData.hotkey && btnData.hotkey.toLowerCase() === pressedKey) { 
@@ -175,7 +170,6 @@ class JSRTSMenu {
             } 
             if (specificHotkeyMatched) return; 
             
-            // 3. Navigation and Activation Keys
             switch (event.key) { 
                 case 'Backspace': event.preventDefault(); event.stopPropagation(); if (this.searchQuery.length > 0) { this.searchQuery = this.searchQuery.slice(0, -1); if (this.searchQuery.length > 0) { this._performSearch(); } else { this._clearSearchState("JSRTSMenu: Search query cleared by backspace."); const currentFocusedItem = this.buttonsData[this.focusedIndex]; if (currentFocusedItem && currentFocusedItem.element && !currentFocusedItem.isSeparator && !currentFocusedItem.disabled) { this._setFocus(this.focusedIndex); } else { this.navigateToFirst(); } } } break; 
                 case 'Escape': event.preventDefault(); event.stopPropagation(); if (this.searchQuery !== '') { this._clearSearchState("JSRTSMenu: Escape cleared active search."); const currentFocusedItem = this.buttonsData[this.focusedIndex]; if (currentFocusedItem && currentFocusedItem.element && !currentFocusedItem.isSeparator && !currentFocusedItem.disabled) { this._setFocus(this.focusedIndex); } else { this.navigateToFirst(); } } else { if (this.menuStateStack.length > 0) { const parentState = this.menuStateStack.pop(); if (parentState && parentState.builder) { this.triggerElementForCurrentSequence = parentState.overallTriggerElement; this.currentSequenceAnchor = parentState.parentAnchor; this.show(this.currentSequenceAnchor, parentState.builder, parentState.triggerItemIndexInParent); } } else { this.hide(); } } break; 
@@ -213,16 +207,14 @@ class JSRTSMenu {
             callbackResult = buttonData.callback(); 
         } 
         this._clearSearchState(null); 
-        
-        if (callbackResult !== true) { // If callback doesn't return true to keep menu open
-            if (this.container.id !== 'command-card-menu-actual-container') { // Popups like context menu
+        if (callbackResult !== true) {
+            if (this.container.id !== 'command-card-menu-actual-container') {
                 this.hide();
             } else if (this.container.id === 'command-card-menu-actual-container' && buttonData.options?.opensSubmenu) {
                 // Submenu was opened from command card, command card itself (parent) stays.
-                // The submenu will be a different JSRTSMenu instance or handled by redrawing this one.
             } else if (this.container.id === 'command-card-menu-actual-container') {
-                // Standard action on command card. By default, let it persist.
-                // Game logic (e.g., unit deselection) should trigger `updateCommandCard()` which might hide it.
+                // Standard action on command card. 
+                // It persists unless game logic (e.g., unit deselection) calls updateCommandCard() which might hide it.
             }
         }
     }
@@ -248,8 +240,6 @@ class JSRTSMenu {
         } 
         
         const menuItems = this.buttonsData.filter(b => b.element && !b.isSeparator); 
-        // Allow empty command card to show (e.g. selected enemy with no actions for player)
-        // but hide empty context menus.
         if (menuItems.length === 0 && this.container.id !== 'command-card-menu-actual-container' && this.menuStateStack.length === 0) { 
             this.hide(); return; 
         } 
@@ -257,20 +247,19 @@ class JSRTSMenu {
         this.container.style.maxHeight = ''; 
         this.container.style.overflowY = ''; 
         this.container.style.visibility = 'hidden'; 
-        this.container.style.display = 'block'; // Must be block to measure scrollHeight
+        this.container.style.display = 'block'; 
         this.container.style.opacity = '0'; 
         
         const menuActualHeight = this.container.scrollHeight; 
         const viewportHeight = window.innerHeight; 
         const maxMenuHeight = viewportHeight * 0.85; 
         
-        // Apply max height and scroll for popups if they exceed viewport allowance
         if (this.container.id !== 'command-card-menu-actual-container' && menuActualHeight > maxMenuHeight) { 
             this.container.style.maxHeight = `${maxMenuHeight}px`; 
             this.container.style.overflowY = 'auto'; 
         } 
         
-        const menuRect = this.container.getBoundingClientRect(); // Get dimensions after content & potential scroll
+        const menuRect = this.container.getBoundingClientRect(); 
         const menuWidth = menuRect.width; 
         let menuHeightToUse = menuRect.height; 
         
@@ -280,14 +269,13 @@ class JSRTSMenu {
                 if (this.container.parentNode !== panel) { 
                     panel.appendChild(this.container);
                 }
-                // CSS handles its static positioning within the panel
                 this.container.style.left = ''; 
                 this.container.style.top = '';
             } else {
                 console.error("JSRTSMenu Error: Command card panel '#command-card-container' not found!");
                 this.hide(); return;
             }
-        } else { // Normal absolute positioning for context menus / popups
+        } else { 
             let idealX, idealY; 
             const vpW = window.innerWidth; 
             const vpH = window.innerHeight; 
