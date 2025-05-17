@@ -99,6 +99,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (commandCardMenu) commandCardMenu.hide();
         if (contextMenu) contextMenu.hide();
         if (gameWorld) gameWorld.innerHTML = ''; 
+        // Game state (units, resources etc.) will be reset by initializeAndStartGame
     };
 
     // Viewport and global event listeners
@@ -481,7 +482,7 @@ function handleViewportMouseDown(e) {
     if (currentGameState !== 'in_game' || !gameInitialized || gameOver) return;
     
     if (gameMode === 'ai_vs_ai' && e.button === 0 && !e.target.closest('.game-object')) { 
-        isPanning = true; lastPanX = e.clientX; lastPanY = e.clientY; viewportElement.classList.add('panning'); e.preventDefault(); return; 
+        isPanning = true; lastPanX = e.clientX; lastPanY = e.clientY; if(viewportElement) viewportElement.classList.add('panning'); e.preventDefault(); return; 
     }
     if (e.button === 0) { // Left Click
         if (placingBuildingType || placingFarm) { 
@@ -489,7 +490,7 @@ function handleViewportMouseDown(e) {
         } 
         if (!e.target.closest('.game-object')) { 
             if (deselectAll) deselectAll(); 
-            isPanning = true; lastPanX = e.clientX; lastPanY = e.clientY; viewportElement.classList.add('panning'); e.preventDefault(); 
+            isPanning = true; lastPanX = e.clientX; lastPanY = e.clientY; if(viewportElement) viewportElement.classList.add('panning'); e.preventDefault(); 
         }
     }
 }
@@ -508,9 +509,9 @@ function handleViewportMouseMove(e) {
 }
 function handleViewportMouseUp(e) { 
     if (currentGameState !== 'in_game' || !gameInitialized || gameOver) return; 
-    if (e.button === 0 && isPanning) { isPanning = false; viewportElement.classList.remove('panning'); } 
+    if (e.button === 0 && isPanning) { isPanning = false; if(viewportElement) viewportElement.classList.remove('panning'); } 
 }
-function handleViewportMouseLeave() { if (isPanning) { isPanning = false; viewportElement.classList.remove('panning'); } }
+function handleViewportMouseLeave() { if (isPanning) { isPanning = false; if(viewportElement) viewportElement.classList.remove('panning'); } }
 function handleViewportWheel(event) { 
     if (currentGameState !== 'in_game' || !gameInitialized || gameOver) return; 
     try { 
@@ -566,7 +567,7 @@ function gameHandleContextMenu(event) {
                  if (selectedUnit.attackDamage > 0) { builderFn = (ctxData) => buildAttackContextMenu(ctxData, targetBuildingData); }
                  else { builderFn = buildMoveContextMenu; }
             } else if (targetResourceData && selectedUnit.unitType === 'worker') { 
-                if (!(targetResourceData.type === 'mine' && resourceData.health <= 0)) {
+                if (!(targetResourceData.type === 'mine' && resourceData.health <= 0)) { // resourceData was undefined here, should be targetResourceData
                     builderFn = (ctxData) => buildHarvestContextMenu(ctxData, targetResourceData);
                 } else { builderFn = buildMoveContextMenu; }
             } else if (targetConstructionData && targetConstructionData.faction === playerFactionKey && selectedUnit.canBuild) { 
@@ -618,6 +619,7 @@ function handleGlobalKeyDown(e) {
     if (key === '`') { if (toggleDebugPanel) toggleDebugPanel(); e.preventDefault(); return; }
 
     if (gameMode === 'human_vs_ai' && !e.target.matches('input, textarea')) {
+        // Global Game Hotkeys 
         if (selectedBuilding && selectedBuilding.faction === playerFactionKey && !selectedBuilding.isConstructing) {
             const bldgStaticData = FACTION_DATA[playerFactionKey].buildings[selectedBuilding.buildingType];
             if (bldgStaticData?.trains) {
@@ -663,7 +665,7 @@ function handleGlobalKeyDown(e) {
         if (key === 'escape') {
             if (contextMenu && contextMenu.isVisible) { contextMenu.hide(); e.preventDefault(); return; }
             if (commandCardMenu && commandCardMenu.isVisible && commandCardMenu.menuStateStack.length > 0) { /* JSRTSMenu's Esc handles submenus */ }
-            else if (commandCardMenu && commandCardMenu.isVisible && commandCardMenu.menuStateStack.length === 0){ commandCardMenu.hide(); e.preventDefault(); return;} // Hide top-level command card
+            else if (commandCardMenu && commandCardMenu.isVisible && commandCardMenu.menuStateStack.length === 0){ commandCardMenu.hide(); e.preventDefault(); return;} 
             else if (placingBuildingType || placingFarm) { if(cancelPlacement) cancelPlacement(); e.preventDefault(); return;}
             else if (selectedUnit || selectedBuilding) { if(deselectAll) deselectAll(); e.preventDefault(); return;}
             else { showMainMenu(); e.preventDefault(); return;} 
@@ -788,8 +790,8 @@ function updatePlacementPreview(worldX, worldY) {
     if (gameMode === 'ai_vs_ai' || (!placingBuildingType && !placingFarm)) return; 
     const checkOverlap = (boxToCheck) => { 
         if (resources.some(r => r.element?.isConnected && checkAABBOverlap(boxToCheck, r.box || getElementWorldBoundingBox(r.element), COLLISION_PADDING))) return true; 
-        if (buildings.some(b => b.element && checkAABBOverlap(boxToCheck, b.box || getElementWorldBoundingBox(b.element), COLLISION_PADDING))) return true; 
-        if (constructions.some(c => c.element && checkAABBOverlap(boxToCheck, c.box || getElementWorldBoundingBox(c.element), COLLISION_PADDING))) return true; 
+        // Check against completed buildings AND active construction sites
+        if (buildings.some(b => b.element && (!b.isConstructing || (b.isConstructing && b.element.classList.contains('construction-site'))) && checkAABBOverlap(boxToCheck, b.box || getElementWorldBoundingBox(b.element), COLLISION_PADDING))) return true; 
         return false; 
     }; 
     const checkBounds = (boxToCheck) => { return boxToCheck.xMin >= 0 && boxToCheck.xMax <= currentWorldWidth && boxToCheck.yMin >= 0 && boxToCheck.yMax <= currentWorldHeight; }; 
@@ -934,7 +936,7 @@ function updateHpBar(entity) {
 
 // --- Debug UI ---
 function toggleDebugPanel() { 
-    isDebugVisible = !isDebugVisible; // isDebugVisible from game-state.js
+    isDebugVisible = !isDebugVisible; 
     if (debugPanel) debugPanel.classList.toggle('visible', isDebugVisible); 
     if (isDebugVisible) updateDebugPanel(); 
 }
@@ -1022,19 +1024,12 @@ function showTemporaryMessage(message, duration = 2000) {
     if (!msgDiv) {
         msgDiv = document.createElement('div');
         msgDiv.id = 'temp-message-div';
-        // Basic styling for the temporary message
         Object.assign(msgDiv.style, {
-            position: 'fixed',
-            bottom: '70px', 
-            left: '50%',
-            transform: 'translateX(-50%)',
-            padding: '10px 20px',
-            backgroundColor: 'rgba(200, 0, 0, 0.8)', 
-            color: 'white',
-            borderRadius: '5px',
-            zIndex: '15000',
-            transition: 'opacity 0.5s ease-out',
-            pointerEvents: 'none' // So it doesn't interfere with clicks
+            position: 'fixed', bottom: '70px', left: '50%',
+            transform: 'translateX(-50%)', padding: '10px 20px',
+            backgroundColor: 'rgba(200, 0, 0, 0.8)', color: 'white',
+            borderRadius: '5px', zIndex: '15000',
+            transition: 'opacity 0.5s ease-out', pointerEvents: 'none'
         });
         document.body.appendChild(msgDiv);
     }
@@ -1054,7 +1049,7 @@ function showTemporaryMessage(message, duration = 2000) {
     }, duration);
 }
 
-// --- Utility: AABB Collision Check ---
+// --- Utility: AABB Collision Check (used by placement logic) ---
 function checkAABBOverlap(box1, box2, padding = 0) { 
     if (!box1 || !box2 || box1.width === 0 || box2.width === 0) return false; 
     return ( 
@@ -1065,13 +1060,13 @@ function checkAABBOverlap(box1, box2, padding = 0) {
     ); 
 }
 
-// Utility function to calculate current food used by a faction
+// Utility function to calculate current food used by a faction (needed by UI for display and JSRTSMenu builders)
 function calculateCurrentFood(factionKeyToCalc) { 
     if (!FACTION_DATA[factionKeyToCalc] || !FACTION_DATA[factionKeyToCalc].units) return 0;
     return units.reduce((sum, u) => sum + (u.faction === factionKeyToCalc ? (FACTION_DATA[factionKeyToCalc].units[u.unitType]?.foodCost || 0) : 0), 0); 
 }
 
-// Utility function to calculate total food capacity for a faction
+// Utility function to calculate total food capacity for a faction (needed by UI for display and JSRTSMenu builders)
 function calculateFoodCapacity(factionKeyToCalc) { 
     let capacity = 0; 
     if (!FACTION_DATA[factionKeyToCalc] || !FACTION_DATA[factionKeyToCalc].buildings) return STARTING_FOOD_CAP;
