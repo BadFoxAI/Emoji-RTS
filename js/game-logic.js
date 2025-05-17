@@ -20,17 +20,17 @@
  * @returns {object|null} The created unit object or null if creation failed.
  */
 function createUnit(unitType, spawnPos, factionKey) {
-    const unitFactionData = FACTION_DATA[factionKey];
+    const unitFactionData = FACTION_DATA[factionKey]; // FACTION_DATA from game-data.js
     if (!unitFactionData) { console.error(`GAME_LOGIC: No faction data for ${factionKey} in createUnit`); return null; }
     const unitStaticData = unitFactionData.units[unitType];
     if (!unitStaticData) { console.error(`GAME_LOGIC: No unit data for ${unitType} in faction ${factionKey}`); return null; }
 
     const element = document.createElement('div');
     element.classList.add('game-object', 'unit', unitType);
-    element.textContent = getEmojiForFaction(unitType, factionKey); 
+    element.textContent = getEmojiForFaction(unitType, factionKey); // From game-data.js
     
     const unit = {
-        id: `unit-${unitIdCounter++}`, 
+        id: `unit-${unitIdCounter++}`, // unitIdCounter from game-state.js
         faction: factionKey,
         element: element,
         unitType: unitType,
@@ -46,7 +46,7 @@ function createUnit(unitType, spawnPos, factionKey) {
         attackDamage: unitStaticData.attackDamage || 0,
         attackSpeed: unitStaticData.attackSpeed || 1000,
         lastAttackTime: 0,
-        speed: UNIT_SPEED, 
+        speed: UNIT_SPEED, // UNIT_SPEED from game-data.js
         hpContainer: null, hpInner: null,
         progressBarContainer: null, progressBarInner: null,
     };
@@ -56,31 +56,31 @@ function createUnit(unitType, spawnPos, factionKey) {
     element.appendChild(indicator);
     unit.indicatorElement = indicator;
 
-    const { hpContainer, hpInnerElem } = createHpBarElement(); // from main.js
+    const { hpContainer, hpInnerElem } = createHpBarElement(); // From main.js
     element.appendChild(hpContainer);
     unit.hpContainer = hpContainer;
-    unit.hpInner = hpInnerElem; // Corrected from previous typo
-    updateHpBar(unit); // from main.js
+    unit.hpInner = hpInnerElem; 
+    updateHpBar(unit); // From main.js
 
-    gameWorld.appendChild(element); // gameWorld from main.js
+    gameWorld.appendChild(element); // gameWorld from main.js (global reference after DOMContentLoaded)
     const unitSize = 36; 
-    placeElementInWorld(element, unit.worldX - unitSize / 2, unit.worldY - unitSize / 2); // from main.js
+    placeElementInWorld(element, unit.worldX - unitSize / 2, unit.worldY - unitSize / 2); // From main.js
     element.classList.add('idle'); 
     element.dataset.unitId = unit.id;
     element.dataset.faction = factionKey;
     
+    // Click listener for player-controlled units (handled in main.js to keep UI logic there)
     if (gameMode === 'human_vs_ai' && factionKey === playerFactionKey) { 
-        element.addEventListener('click', (e) => { e.stopPropagation(); handleUnitClick(unit); }); // handleUnitClick from main.js
+        element.addEventListener('click', (e) => { e.stopPropagation(); handleUnitClick(unit); }); 
     }
     
-    units.push(unit); 
+    units.push(unit); // units from game-state.js
     return unit;
 }
 
 /**
  * Creates a new building (or farm tiles) and adds it to the game.
  * This is for *completed* buildings or the initial setup of bases.
- * Construction sites are handled by createConstructionSite.
  */
 function createBuilding(buildingType, positionBox, factionKey, isBase = false, isConstructed = true) {
     const buildingFactionData = FACTION_DATA[factionKey];
@@ -98,10 +98,10 @@ function createBuilding(buildingType, positionBox, factionKey, isBase = false, i
     element.style.width = `${positionBox.width}px`;
     element.style.height = `${positionBox.height}px`;
 
-    if (buildingType !== 'farm') { // Farms don't need dynamic font sizing for a single placeholder
+    if (buildingType !== 'farm') { 
         const tempStyleCheck = document.createElement('div');
         tempStyleCheck.classList.add(buildingType); 
-        gameWorld.appendChild(tempStyleCheck);
+        gameWorld.appendChild(tempStyleCheck); 
         element.style.fontSize = window.getComputedStyle(tempStyleCheck).fontSize;
         gameWorld.removeChild(tempStyleCheck);
     }
@@ -112,16 +112,15 @@ function createBuilding(buildingType, positionBox, factionKey, isBase = false, i
 
     let pbContainer = null, pbInner = null;
     if (buildingStaticData.trains) {
-        const { container, inner } = createProgressBarElement();
+        const { container, inner } = createProgressBarElement(); // from main.js
         element.appendChild(container);
         pbContainer = container;
         pbInner = inner;
         if (pbContainer) pbContainer.style.display = 'none';
     }
-    const { hpContainer, hpInnerElem } = createHpBarElement(); 
+    const { hpContainer, hpInnerElem } = createHpBarElement(); // from main.js
     element.appendChild(hpContainer);
     
-    // Add to DOM only if not a conceptual farm group post-construction
     if (!(buildingType === 'farm' && isConstructed)) {
         gameWorld.appendChild(element);
     }
@@ -130,8 +129,8 @@ function createBuilding(buildingType, positionBox, factionKey, isBase = false, i
         id: id,
         buildingType: buildingType,
         element: (buildingType === 'farm' && isConstructed) ? null : element, 
-        box: (buildingType === 'farm' && isConstructed) ? positionBox : getElementWorldBoundingBox(element), 
-        isConstructing: !isConstructed, // Will be false if isConstructed is true
+        box: (buildingType === 'farm' && isConstructed) ? positionBox : getElementWorldBoundingBox(element), // from main.js
+        isConstructing: !isConstructed, 
         isBase: isBase,
         faction: factionKey,
         hp: buildingStaticData.hp, // Completed buildings start at full HP
@@ -149,8 +148,8 @@ function createBuilding(buildingType, positionBox, factionKey, isBase = false, i
     };
 
     if (buildingType === 'farm' && isConstructed) {
-        if (element.parentNode === gameWorld) gameWorld.removeChild(element); // Remove the placeholder if it was added
-        for (let i = 0; i < FARM_GRID_DIM * FARM_GRID_DIM; i++) {
+        if (element.parentNode === gameWorld) gameWorld.removeChild(element); 
+        for (let i = 0; i < FARM_GRID_DIM * FARM_GRID_DIM; i++) { // Constants from game-data.js
             const tile = document.createElement('div');
             tile.classList.add('game-object', 'building', 'farm', 'farm-tile');
             tile.textContent = getEmojiForFaction('farm', factionKey);
@@ -158,28 +157,29 @@ function createBuilding(buildingType, positionBox, factionKey, isBase = false, i
             const dy = Math.floor(i / FARM_GRID_DIM);
             const tileX = positionBox.xMin + dx * FARM_TILE_SIZE;
             const tileY = positionBox.yMin + dy * FARM_TILE_SIZE;
-            placeElementInWorld(tile, tileX, tileY);
+            placeElementInWorld(tile, tileX, tileY); // from main.js
             tile.style.width = `${FARM_TILE_SIZE}px`;
             tile.style.height = `${FARM_TILE_SIZE}px`;
             tile.style.fontSize = `${FARM_TILE_SIZE * 0.9}px`; 
             gameWorld.appendChild(tile);
-            buildingData.tileElements.push(tile); // Store farm tiles if needed for later removal
+            buildingData.tileElements.push(tile); 
         }
     } else {
-         updateHpBar(buildingData);
+         updateHpBar(buildingData); // from main.js
     }
 
-    if (buildingData.element && buildingType !== 'farm') { // Add click listener only if there's a main element
+    // Add click listener only if there's a main element (i.e., not a completed farm group)
+    if (buildingData.element && buildingType !== 'farm') { 
       if (((gameMode === 'human_vs_ai' || gameMode === 'ai_vs_ai') && factionKey === playerFactionKey) ||
           (gameMode === 'human_vs_ai' && factionKey !== playerFactionKey) ) {
-          buildingData.element.addEventListener('click', (e) => { e.stopPropagation(); handleBuildingClick(buildingData); });
+          buildingData.element.addEventListener('click', (e) => { e.stopPropagation(); handleBuildingClick(buildingData); }); // from main.js
       }
     }
 
-    buildings.push(buildingData);
+    buildings.push(buildingData); // from game-state.js
     if (isBase) {
-        if (factionKey === playerFactionKey) playerBaseData = buildingData;
-        else opponentBaseData = buildingData;
+        if (factionKey === playerFactionKey) playerBaseData = buildingData; // from game-state.js
+        else opponentBaseData = buildingData; // from game-state.js
     }
     return buildingData;
 }
@@ -216,10 +216,9 @@ function createConstructionSite(buildingType, box, forFaction, byWorker) {
     const { hpContainer, hpInnerElem } = createHpBarElement();
     elem.appendChild(hpContainer);
     
-    // Allow clicking on ANY construction site to see info (player or enemy)
     elem.addEventListener('click', (e) => { 
         e.stopPropagation(); 
-        const consDataObj = constructions.find(c => c.id === id) || buildings.find(b => b.id === id && b.isConstructing); // Check both arrays
+        const consDataObj = constructions.find(c => c.id === id) || buildings.find(b => b.id === id && b.isConstructing);
         if (consDataObj) handleBuildingClick(consDataObj); 
     });
     gameWorld.appendChild(elem);
@@ -249,8 +248,8 @@ function initializeMapAndBases() {
     gameWorld.style.width = `${WORLD_WIDTH}px`; 
     gameWorld.style.height = `${WORLD_HEIGHT}px`;
 
-    const p1BaseStaticData = FACTION_DATA[p1FactionKey].buildings.base;
-    const p2BaseStaticData = FACTION_DATA[p2FactionKey].buildings.base;
+    const p1BaseStaticData = FACTION_DATA[p1FactionKey].buildings.base; 
+    const p2BaseStaticData = FACTION_DATA[p2FactionKey].buildings.base; 
 
     const p1BaseBox = {
         xMin: BASE_OFFSET_X, yMin: WORLD_HEIGHT - BASE_OFFSET_Y - p1BaseStaticData.size.h,
@@ -269,7 +268,7 @@ function initializeMapAndBases() {
     opponentBaseData = createBuilding('base', p2BaseBox, p2FactionKey, true, true);
 
     if (!playerBaseData || !opponentBaseData) {
-        throw new Error("FATAL: Base creation failed during map initialization.");
+        throw new Error("GAME_LOGIC: FATAL - Base creation failed during map initialization.");
     }
 
     const obstacles = [playerBaseData.box, opponentBaseData.box]; 
@@ -295,7 +294,7 @@ function initializeMapAndBases() {
     for(let i=0; i<p1InitialWorkerCount; i++) {
         if (playerBaseData && playerBaseData.element) {
             createUnit('worker', getSpawnPosition(playerBaseData.element, i, p1InitialWorkerCount), p1FactionKey);
-        } else { console.error("P1 Base element missing for initial worker spawn."); }
+        } else { console.error("GAME_LOGIC: P1 Base element missing for initial worker spawn."); }
     }
     
     let p2InitialWorkerCount = (gameMode === 'ai_vs_ai' || gameMode === 'human_vs_ai') ? 2 : 0; 
@@ -306,40 +305,735 @@ function initializeMapAndBases() {
     }
 }
 
-function placeResourcesCarefully(type, count, emoji, zone, allCurrentObstacles) { /* ... (Same as previous full code) ... */ }
-function setUnitState(unit, newState) { /* ... (Same as previous full code) ... */ }
-function issueCommand(unit, command, triggeredByAI = false) { /* ... (Same as previous full code) ... */ }
-function dealDamage(targetData, damage) { /* ... (Same as previous full code) ... */ }
-function checkGameOver() { /* ... (Same as previous full code) ... */ }
-function handleHarvestComplete(unit, resourceData) { /* ... (Same as previous full code) ... */ }
-function handleDepositResource(unit) { /* ... (Same as previous full code) ... */ }
-function findAndTargetNearestResource(unit, resourceClassType, specificNode = null, triggeredByAI = false) { /* ... (Same as previous full code) ... */ }
-function assignWorkerToConstruction(constructionData, unit, triggeredByAI = false) { /* ... (Same as previous full code) ... */ }
-function startWorkerBuilding(unit, constructionData) { /* ... (Same as previous full code) ... */ }
-function completeConstruction(constructionData) { /* ... (Same as previous full code, ensure it calls createBuilding for the final step and handles selectedBuilding update if it was the construction site) ... */ }
-function completeAnyUnitTraining(buildingData) { /* ... (Same as previous full code, ensure it calls createUnit) ... */ }
-function aiCanAffordGeneric(factionKey, itemType, isUnit, woodRes, coalRes, foodRes, foodCap) { /* ... (Same as previous full code) ... */ }
-function aiStartConstructionGeneric(factionKey, type, box, assignedWorker) { /* ... (Same as previous full code) ... */ }
-function aiTryBuildGeneric(factionKey, factionBaseData, buildingType, builderUnit) { /* ... (Same as previous full code) ... */ }
-function updateSingleAI(currentAIFactionKey) { /* ... (Same as previous full code, using factionAiUpdateCounters from game-state.js) ... */ }
-function getSpawnPosition(buildingElement, index, totalUnitsOfType = 1) { /* ... (Same as previous full code) ... */ }
-function findNearestResource(unit, resourceClassType) { /* ... (Same as previous full code) ... */ }
+function placeResourcesCarefully(type, count, emoji, zone, allCurrentObstacles) {
+    let elSize;
+    if (type === 'mine') elSize = { w: 140, h: 140 }; 
+    else if (type === 'tree') elSize = { w: 100, h: 100 }; 
+    else elSize = { w: 100, h: 100 }; 
+
+    const resourceRadius = Math.max(elSize.w, elSize.h) / 2;
+    const spacing = resourceRadius * 0.8; 
+    let placedCount = 0;
+    let attempts = 0;
+    const maxTotalAttempts = count * 200; 
+    const newlyPlacedBoxes = [];
+
+    while (placedCount < count && attempts < maxTotalAttempts) {
+        attempts++;
+        const randX = Math.random() * (zone.maxX - zone.minX - elSize.w) + zone.minX + elSize.w / 2;
+        const randY = Math.random() * (zone.maxY - zone.minY - elSize.h) + zone.minY + elSize.h / 2;
+
+        const potentialBox = {
+            xMin: randX - elSize.w / 2, yMin: randY - elSize.h / 2,
+            xMax: randX + elSize.w / 2, yMax: randY + elSize.h / 2,
+            width: elSize.w, height: elSize.h, centerX: randX, centerY: randY
+        };
+
+        if(potentialBox.xMin < 0 || potentialBox.xMax > currentWorldWidth || potentialBox.yMin < 0 || potentialBox.yMax > currentWorldHeight) continue;
+        if(potentialBox.centerX < zone.minX || potentialBox.centerX > zone.maxX || potentialBox.centerY < zone.minY || potentialBox.centerY > zone.maxY) continue;
+        
+        let tooClose = false;
+        for (const existingBox of allCurrentObstacles) {
+            if (existingBox && checkAABBOverlap(potentialBox, existingBox, spacing)) { 
+                tooClose = true;
+                break;
+            }
+        }
+        if (tooClose) continue;
+
+        const rElement = document.createElement('div');
+        rElement.classList.add('game-object', 'resource', type);
+        rElement.textContent = emoji;
+        const resourceId = `res-${type}-${resourceIdCounter++}`; 
+        rElement.id = resourceId;
+        rElement.style.width = `${elSize.w}px`;
+        rElement.style.height = `${elSize.h}px`;
+        if (type === 'mine') rElement.style.fontSize = '140px'; 
+        else if (type === 'tree') rElement.style.fontSize = '100px'; 
+        
+        placeElementInWorld(rElement, potentialBox.xMin, potentialBox.yMin); 
+        gameWorld.appendChild(rElement);
+
+        const resourceData = {
+            id: resourceId,
+            type: type,
+            element: rElement,
+            box: getElementWorldBoundingBox(rElement), 
+            health: (type === 'mine') ? MINE_HEALTH_INIT : 1 
+        };
+
+        if (resourceData.box.width === 0) { 
+            gameWorld.removeChild(rElement);
+            attempts--; 
+            continue;
+        }
+        
+        resources.push(resourceData); 
+        allCurrentObstacles.push(resourceData.box); 
+        newlyPlacedBoxes.push(resourceData.box);
+        placedCount++;
+    }
+    if (placedCount < count) {
+        console.warn(`GAME_LOGIC: Could only place ${placedCount}/${count} ${type} resources in the zone.`);
+    }
+    return newlyPlacedBoxes;
+}
+
+function setUnitState(unit, newState) {
+    if (!unit || unit.state === newState) return;
+    if(unit.element) { 
+        unit.element.classList.remove('error-state', unit.state); 
+    }
+
+    if (unit.state === 'harvesting') { clearTimeout(unit.harvestTimer); unit.harvestTimer = null; }
+    if (unit.state === 'attacking') { unit.lastAttackTime = 0; }
+
+    if (newState !== 'building' && newState !== 'moving_to_build' && unit.constructionId) {
+        const cons = constructions.find(c => c.id === unit.constructionId);
+        if (cons && cons.assignedWorker === unit) {
+            cons.assignedWorker = null;
+            if(cons.element) cons.element.classList.remove('building'); 
+            if(cons.progressBarContainer) cons.progressBarContainer.style.display = 'none';
+        }
+        unit.constructionId = null;
+    }
+    unit.state = newState;
+    if(unit.element) {
+        unit.element.classList.add(newState); 
+        unit.element.classList.toggle('carrying', unit.state === 'returning' && unit.resourceType !== null);
+    }
+
+    if (unit.indicatorElement) {
+        let indicatorEmoji = '';
+        if (unit.state === 'returning' && unit.resourceType) {
+            indicatorEmoji = unit.resourceType === 'wood' ? getEmojiForFaction( 'resource_wood', unit.faction) : getEmojiForFaction('resource_coal', unit.faction);
+        }
+        unit.indicatorElement.textContent = indicatorEmoji;
+    }
+
+    if (newState === 'idle') {
+        unit.target = null; unit.targetElement = null;
+        unit.lastHarvestedNodeId = null; unit.constructionId = null;
+        unit.ai_tasked = false; 
+    } else if (newState === 'attacking') {
+        unit.target = null; 
+        unit.lastAttackTime = 0;
+    } else if (newState === 'retreating') {
+        unit.targetElement = null; unit.resourceType = null; 
+    }
+    if (gameMode === 'human_vs_ai' && unit === selectedUnit) {
+        updateSelectionInfo(); 
+    }
+}
+
+function issueCommand(unit, command, triggeredByAI = false) {
+    if (!unit || unit.hp <= 0) return;
+    clearTimeout(unit.harvestTimer); 
+    unit.harvestTimer = null;
+
+    if (command.state !== 'returning') { unit.lastHarvestedNodeId = null; } 
+
+    if (command.state === 'moving_to_resource' && command.preferredType && unit.faction === playerFactionKey && gameMode === 'human_vs_ai') {
+        unit.preferredResourceType = command.preferredType;
+    } else if (command.state !== 'moving_to_resource') { 
+        delete unit.preferredResourceType;
+    }
+
+    if (unit.state === 'building' && unit.constructionId && unit.constructionId !== command.constructionId) {
+        const oldCons = constructions.find(c => c.id === unit.constructionId);
+        if (oldCons && oldCons.assignedWorker === unit) {
+            oldCons.assignedWorker = null;
+            if(oldCons.element) oldCons.element.classList.remove('building');
+            if(oldCons.progressBarContainer) oldCons.progressBarContainer.style.display = 'none';
+        }
+    }
+    unit.constructionId = command.constructionId || null; 
+    unit.ai_tasked = triggeredByAI;
+    unit.targetElement = command.targetElement; 
+    unit.target = command.target; 
+    
+    setUnitState(unit, command.state); 
+
+    if (command.state !== 'returning') { 
+        unit.resourceType = null; 
+        if (unit.indicatorElement) unit.indicatorElement.textContent = '';
+        if (unit.element) unit.element.classList.remove('carrying');
+    }
+}
+
+function dealDamage(targetData, damage) {
+    if (!targetData || targetData.hp <= 0) return; 
+    targetData.hp -= damage;
+    updateHpBar(targetData); 
+
+    if (gameMode === 'human_vs_ai' && 
+        targetData.faction === playerFactionKey && 
+        targetData.unitType === 'worker' &&
+        targetData.hp > 0 && 
+        (targetData.hp / targetData.maxHp) < WORKER_RETREAT_HP_PERCENT &&
+        targetData.state !== 'retreating' && playerBaseData && playerBaseData.hp > 0) {
+        issueCommand(targetData, { 
+            state: 'retreating', 
+            target: {x: playerBaseData.box.centerX, y: playerBaseData.box.centerY}
+        }, false); 
+    }
+
+    if (targetData.hp <= 0) {
+        targetData.hp = 0; 
+        if (targetData.element && targetData.element.parentNode === gameWorld) {
+            try { gameWorld.removeChild(targetData.element); } 
+            catch (e) { console.warn("GAME_LOGIC: Error removing element of dead entity:", e); }
+        }
+
+        if (selectedUnit === targetData) deselectAll(); 
+        if (selectedBuilding === targetData) deselectAll(); 
+
+        units.forEach(attacker => {
+            if ((attacker.state === 'attacking' || attacker.state === 'moving_to_attack') && attacker.targetElement === targetData.element) {
+                setUnitState(attacker, 'idle');
+            }
+        });
+
+        const unitIndex = units.findIndex(u => u.id === targetData.id);
+        if (unitIndex > -1) {
+            units.splice(unitIndex, 1);
+        } else {
+            const buildingIndex = buildings.findIndex(b => b.id === targetData.id);
+            if (buildingIndex > -1) {
+                const destroyedBuildingData = buildings[buildingIndex];
+                
+                const consIndex = constructions.findIndex(c => c.id === targetData.id);
+                if (consIndex > -1) { 
+                    const worker = constructions[consIndex].assignedWorker;
+                    if (worker && worker.state === 'building' && worker.constructionId === targetData.id) {
+                        setUnitState(worker, 'idle'); 
+                    }
+                    constructions.splice(consIndex, 1);
+                }
+                buildings.splice(buildingIndex, 1); 
+
+                if (destroyedBuildingData.isBase) {
+                    checkGameOver(); 
+                }
+                const staticBldgData = FACTION_DATA[destroyedBuildingData.faction]?.buildings[destroyedBuildingData.buildingType];
+                if (staticBldgData?.provides_food) {
+                    updateResourceDisplay(); 
+                }
+            }
+        }
+        updateResourceDisplay(); 
+    }
+}
+
+function checkGameOver() {
+    if (gameOver) return true; 
+
+    const p1HasBase = buildings.some(b => b.isBase && b.faction === p1FactionKey && b.hp > 0);
+    const p2HasBase = buildings.some(b => b.isBase && b.faction === p2FactionKey && b.hp > 0);
+    let winner = null;
+
+    if (gameInitialized) { 
+        if (!p2HasBase && p1HasBase) {
+            winner = p1FactionKey;
+        } else if (!p1HasBase && p2HasBase) {
+            winner = p2FactionKey;
+        } else if (!p1HasBase && !p2HasBase) {
+            winner = "Draw"; 
+        }
+    }
+
+    if (winner) {
+        setGameOver(true); // from game-state.js
+        showGameOver(winner); // from main.js
+        return true;
+    }
+    return false;
+}
+
+function handleHarvestComplete(unit, resourceData) {
+    if (!unit || unit.state !== 'harvesting' || !resourceData || !resourceData.element?.isConnected) {
+        if (unit && unit.state === 'harvesting') setUnitState(unit, 'idle');
+        return;
+    }
+    unit.harvestTimer = null;
+    let harvestedType = null;
+    const nodeId = resourceData.id;
+
+    if (resourceData.type === 'tree') {
+        resourceData.health = 0; 
+        harvestedType = 'wood';
+        if (resourceData.element.parentNode === gameWorld) {
+            try { gameWorld.removeChild(resourceData.element); } catch(e) {}
+        }
+        resources = resources.filter(r => r.id !== nodeId);
+    } else if (resourceData.type === 'mine') {
+        if (resourceData.health > 0) {
+            resourceData.health--;
+            harvestedType = 'coal';
+            if (resourceData.health <= 0) {
+                resourceData.element.classList.add('depleting');
+                setTimeout(() => {
+                    if (resourceData.element?.isConnected && resourceData.element.parentNode === gameWorld) {
+                        try { gameWorld.removeChild(resourceData.element); } catch(e) {}
+                    }
+                    resources = resources.filter(r => r.id !== nodeId);
+                }, 500); 
+            }
+        }
+    }
+
+    if (harvestedType) {
+        unit.resourceType = harvestedType;
+        unit.lastHarvestedNodeId = nodeId;
+        const targetBase = unit.faction === playerFactionKey ? playerBaseData : opponentBaseData;
+        if (targetBase && targetBase.hp > 0) {
+             issueCommand(unit, { state: 'returning', target: {x:targetBase.box.centerX, y:targetBase.box.centerY}, targetElement: targetBase.element });
+        } else {
+            setUnitState(unit, 'idle'); 
+        }
+    } else { 
+        let nextPreferredType = unit.preferredResourceType || (resourceData.type === 'tree' ? 'mine' : 'tree');
+        findAndTargetNearestResource(unit, nextPreferredType, null, (unit.faction !== playerFactionKey || gameMode === 'ai_vs_ai'));
+        unit.targetElement = null; 
+    }
+}
+
+function handleDepositResource(unit) {
+    const returnedType = unit.resourceType;
+    const lastNodeId = unit.lastHarvestedNodeId;
+    let deposited = false;
+
+    const targetBase = unit.faction === playerFactionKey ? playerBaseData : opponentBaseData;
+    if (!targetBase || targetBase.hp <= 0) {
+        setUnitState(unit, 'idle'); 
+        return;
+    }
+
+    if (unit.faction === playerFactionKey) {
+        if (returnedType === 'wood') { p1Wood++; deposited = true; }
+        else if (returnedType === 'coal') { p1Coal++; deposited = true; }
+    } else { 
+        if (returnedType === 'wood') { p2Wood++; deposited = true; }
+        else if (returnedType === 'coal') { p2Coal++; deposited = true; }
+    }
+
+    if(deposited) updateResourceDisplay(); 
+
+    unit.resourceType = null;
+    if (unit.indicatorElement) unit.indicatorElement.textContent = '';
+    if (unit.element) unit.element.classList.remove('carrying');
+
+    let nextTargetNode = null;
+    const searchType = unit.preferredResourceType || (returnedType === 'wood' ? 'tree' : 'mine');
+    
+    if (searchType === 'mine' && lastNodeId) {
+        nextTargetNode = resources.find(r => r.id === lastNodeId && r.element?.isConnected && r.health > 0);
+    }
+    if (!nextTargetNode) { 
+        nextTargetNode = findNearestResource(unit, searchType);
+    }
+    if (!nextTargetNode && unit.preferredResourceType) { 
+        nextTargetNode = findNearestResource(unit, searchType === 'tree' ? 'mine' : 'tree');
+    }
+
+    if (nextTargetNode) {
+        findAndTargetNearestResource(unit, nextTargetNode.type, nextTargetNode, (unit.faction !== playerFactionKey || gameMode === 'ai_vs_ai'));
+    } else {
+        setUnitState(unit, 'idle'); 
+    }
+}
+
+function findAndTargetNearestResource(unit, resourceClassType, specificNode = null, triggeredByAI = false) {
+    const nodeToTarget = specificNode || findNearestResource(unit, resourceClassType);
+    if (nodeToTarget && nodeToTarget.element && nodeToTarget.element.isConnected) {
+        const targetBox = nodeToTarget.box || getElementWorldBoundingBox(nodeToTarget.element);
+        if (targetBox.width > 0) {
+            issueCommand(unit, { 
+                state: 'moving_to_resource', 
+                target: { x: targetBox.centerX, y: targetBox.centerY }, 
+                targetElement: nodeToTarget.element, 
+                preferredType: resourceClassType 
+            }, triggeredByAI);
+            return true;
+        } else {
+            setUnitState(unit, 'idle'); 
+        }
+    } else {
+        setUnitState(unit, 'idle'); 
+    }
+    return false;
+}
+
+function assignWorkerToConstruction(constructionData, unit, triggeredByAI = false) {
+    if (constructionData.assignedWorker && constructionData.assignedWorker !== unit) {
+        const oldWorker = constructionData.assignedWorker;
+        if (oldWorker.state === 'building' && oldWorker.constructionId === constructionData.id) {
+            setUnitState(oldWorker, 'idle');
+        }
+    } else if (constructionData.assignedWorker === unit) {
+        return; 
+    }
+
+    if (unit.constructionId && unit.constructionId !== constructionData.id) {
+        const otherCons = constructions.find(c => c.id === unit.constructionId);
+        if (otherCons && otherCons.assignedWorker === unit) {
+            otherCons.assignedWorker = null;
+            if(otherCons.element) otherCons.element.classList.remove('building');
+            if(otherCons.progressBarContainer) otherCons.progressBarContainer.style.display = 'none';
+        }
+    }
+
+    constructionData.assignedWorker = unit;
+    unit.constructionId = constructionData.id;
+    const unitSize = 36; 
+    const targetX = constructionData.box.xMin + constructionData.box.width / 2;
+    const targetY = constructionData.box.yMin + constructionData.box.height + unitSize / 2 + COLLISION_PADDING;
+    issueCommand(unit, { 
+        state: 'moving_to_build', 
+        target: { x: targetX, y: targetY }, 
+        targetElement: constructionData.element,
+        constructionId: constructionData.id 
+    }, triggeredByAI);
+}
+
+function startWorkerBuilding(unit, constructionData) {
+    if (unit.constructionId === constructionData.id && constructionData.assignedWorker === unit) {
+        setUnitState(unit, 'building');
+        if(constructionData.element) constructionData.element.classList.add('building');
+        if (constructionData.progressBarContainer) constructionData.progressBarContainer.style.display = 'block';
+    }
+}
+
+function completeConstruction(constructionData) {
+    const buildingType = constructionData.buildingType;
+    const buildingFaction = constructionData.faction;
+    const buildingStaticData = FACTION_DATA[buildingFaction].buildings[buildingType];
+    if (!buildingStaticData) { console.error("GAME_LOGIC: Cannot complete construction, no static data for " + buildingType); return; }
+
+    const buildingIndex = buildings.findIndex(b => b.id === constructionData.id);
+    if (buildingIndex === -1) { console.error("GAME_LOGIC: Cannot find construction " + constructionData.id + " in buildings array to complete."); return; }
+    
+    // Remove construction site element from DOM
+    if(constructionData.element && constructionData.element.parentNode === gameWorld) {
+        try { gameWorld.removeChild(constructionData.element); } catch(e) {}
+    }
+    
+    // Create the actual building object (this replaces the construction site object in the `buildings` array implicitly)
+    const newBuilding = createBuilding(buildingType, constructionData.box, buildingFaction, buildingStaticData.isBase || false, true);
+    
+    if (newBuilding) {
+        // Important: Ensure the new building reuses the ID of the construction site
+        // This maintains selection if the construction site was selected.
+        newBuilding.id = constructionData.id; 
+        if(newBuilding.element) newBuilding.element.id = constructionData.id; 
+
+        buildings[buildingIndex] = newBuilding; // Replace the construction site data with the new building data
+
+        if (selectedBuilding === constructionData) { 
+            setSelectedBuilding(newBuilding); 
+            updateCommandCard(); // from main.js
+        }
+    } else {
+        console.error("GAME_LOGIC: Failed to create final building for " + buildingType);
+        buildings.splice(buildingIndex, 1); // Remove the faulty construction site
+    }
+
+    const worker = constructionData.assignedWorker;
+    if (worker && worker.constructionId === constructionData.id && worker.state === 'building') {
+        setUnitState(worker, 'idle');
+        worker.constructionId = null;
+    }
+
+    const consIndex = constructions.findIndex(c => c.id === constructionData.id);
+    if (consIndex > -1) {
+        constructions.splice(consIndex, 1);
+    }
+
+    updateResourceDisplay(); 
+    if (gameMode === 'human_vs_ai' && buildingFaction === playerFactionKey && buildingType !== 'farm') {
+        // updateCommandCard(); // Already called if selectedBuilding was updated
+    }
+}
+
+function completeAnyUnitTraining(buildingData) {
+    const unitTypeToSpawn = buildingData.trainingUnitType;
+    const factionKey = buildingData.faction;
+    if (!unitTypeToSpawn) return;
+
+    const existingUnitsOfFaction = units.filter(u => u.faction === factionKey).length;
+    const spawnPos = getSpawnPosition(buildingData.element, existingUnitsOfFaction, 5); 
+    
+    const newUnit = createUnit(unitTypeToSpawn, spawnPos, factionKey); // createUnit is in this file
+    if (newUnit && (factionKey === p2FactionKey || (factionKey === p1FactionKey && gameMode === 'ai_vs_ai'))) {
+        // Basic AI: send combat units to attack enemy base
+        if ((newUnit.unitType === 'soldier' || newUnit.unitType === 'archer') && opponentBaseData && opponentBaseData.hp > 0) {
+             issueCommand(newUnit, { 
+                state: 'moving_to_attack', 
+                target: { x: opponentBaseData.box.centerX, y: opponentBaseData.box.centerY }, 
+                targetElement: opponentBaseData.element 
+            }, true);
+        } else {
+            setUnitState(newUnit, 'idle'); 
+        }
+    }
+
+    buildingData.isTraining = false;
+    buildingData.trainingUnitType = null;
+    buildingData.trainingProgress = 0;
+    buildingData.trainingTotalTime = 0;
+    if (buildingData.progressBarInner) buildingData.progressBarInner.style.width = '0%';
+    if (buildingData.progressBarContainer) buildingData.progressBarContainer.style.display = 'none';
+    if (buildingData.element) buildingData.element.classList.remove('training');
+
+    if (gameMode === 'human_vs_ai' && buildingData.faction === playerFactionKey) {
+        updateCommandCard(); 
+        updateSelectionInfo(); 
+    }
+    updateResourceDisplay(); 
+}
+
+function aiCanAffordGeneric(factionKey, itemType, isUnit, woodRes, coalRes, foodRes, foodCap) {
+    const costData = isUnit ? FACTION_DATA[factionKey].units[itemType]?.cost : FACTION_DATA[factionKey].buildings[itemType]?.cost;
+    if (!costData) return false;
+    if (woodRes < (costData.wood || 0) || coalRes < (costData.coal || 0)) return false;
+    if (isUnit) {
+        const unitData = FACTION_DATA[factionKey].units[itemType];
+        if (!unitData || !unitData.foodCost) return true; // No food cost means it's fine
+        if (foodRes + unitData.foodCost > foodCap) return false;
+    }
+    return true;
+}
+
+function aiStartConstructionGeneric(factionKey, type, box, assignedWorker) {
+    const cost = FACTION_DATA[factionKey].buildings[type].cost;
+    // Deduct resources for AI
+    if (factionKey === p1FactionKey) {
+        p1Wood -= (cost.wood || 0);
+        p1Coal -= (cost.coal || 0);
+    } else { // p2FactionKey
+        p2Wood -= (cost.wood || 0);
+        p2Coal -= (cost.coal || 0);
+    }
+    // updateResourceDisplay(); // Not strictly needed for AI logic, but good for debug if watching AI vs AI
+    return createConstructionSite(type, box, factionKey, assignedWorker); // createConstructionSite from this file
+}
+
+function aiTryBuildGeneric(factionKey, factionBaseData, buildingType, builderUnit) {
+    if (!factionBaseData || !factionBaseData.box || !builderUnit || !builderUnit.canBuild) return false;
+    const buildingStaticData = FACTION_DATA[factionKey].buildings[buildingType];
+    if (!buildingStaticData) return false;
+
+    const baseBox = factionBaseData.box;
+    const size = buildingStaticData.size;
+    let attempts = 0;
+    const MAX_ATTEMPTS = 50;
+    const PLACEMENT_RADIUS_MIN = Math.max(baseBox.width, baseBox.height) / 2 + Math.max(size.w, size.h) / 2 + 30;
+    const PLACEMENT_RADIUS_MAX = PLACEMENT_RADIUS_MIN + 250;
+
+    while (attempts < MAX_ATTEMPTS) {
+        attempts++;
+        const angle = Math.random() * 2 * Math.PI;
+        const radius = Math.random() * (PLACEMENT_RADIUS_MAX - PLACEMENT_RADIUS_MIN) + PLACEMENT_RADIUS_MIN;
+        const potentialX = baseBox.centerX + Math.cos(angle) * radius;
+        const potentialY = baseBox.centerY + Math.sin(angle) * radius;
+        const potentialBox = {
+            xMin: potentialX - size.w / 2, yMin: potentialY - size.h / 2,
+            xMax: potentialX + size.w / 2, yMax: potentialY + size.h / 2,
+            width: size.w, height: size.h, centerX: potentialX, centerY: potentialY
+        };
+
+        if (potentialBox.xMin < 0 || potentialBox.xMax > currentWorldWidth || potentialBox.yMin < 0 || potentialBox.yMax > currentWorldHeight) continue;
+        
+        let overlaps = resources.some(r => r.element?.isConnected && checkAABBOverlap(potentialBox, r.box || getElementWorldBoundingBox(r.element), COLLISION_PADDING));
+        if (!overlaps) overlaps = buildings.some(b => b.element && checkAABBOverlap(potentialBox, b.box || getElementWorldBoundingBox(b.element), COLLISION_PADDING));
+        // Also check against other active construction sites
+        if (!overlaps) overlaps = constructions.some(c => c.element && checkAABBOverlap(potentialBox, c.box || getElementWorldBoundingBox(c.element), COLLISION_PADDING));
+
+        if (!overlaps) {
+            aiStartConstructionGeneric(factionKey, buildingType, potentialBox, builderUnit);
+            return true; // Successfully started construction
+        }
+    }
+    return false; // Failed to find a spot
+}
+
+function getSpawnPosition(buildingElement, index, totalUnitsOfType = 1) {
+    if (!buildingElement) {
+        console.warn("GAME_LOGIC: getSpawnPosition called with no buildingElement, defaulting to center.");
+        return { x: currentWorldWidth / 2, y: currentWorldHeight / 2 };
+    }
+    const bBox = getElementWorldBoundingBox(buildingElement);
+    if (bBox.width === 0 && bBox.height === 0) { // Fallback if bounding box is invalid
+        console.warn("GAME_LOGIC: getSpawnPosition buildingElement has zero dimensions, defaulting to center.");
+        return { x: currentWorldWidth / 2, y: currentWorldHeight / 2 };
+    }
+    const center = { x: bBox.centerX, y: bBox.centerY };
+    const baseRadius = Math.max(bBox.width, bBox.height) / 2 + 25; // Spawn slightly outside the building
+    const angleIncrement = totalUnitsOfType > 1 ? (360 / totalUnitsOfType) : 0;
+    const angle = (index * angleIncrement) * (Math.PI / 180); // Convert to radians
+    const radiusOffset = Math.floor(index / totalUnitsOfType) * 10; // Spiral out if many units
+    const radius = baseRadius + radiusOffset + (Math.sqrt(index % totalUnitsOfType) * 8); // Slightly vary radius
+    
+    let spawnX = center.x + Math.cos(angle) * radius;
+    let spawnY = center.y + Math.sin(angle) * radius;
+
+    // Clamp to world bounds (ensure unit center is within bounds)
+    const unitHalfSize = 18; // Approximate half size of unit
+    spawnX = Math.max(unitHalfSize, Math.min(currentWorldWidth - unitHalfSize, spawnX));
+    spawnY = Math.max(unitHalfSize, Math.min(currentWorldHeight - unitHalfSize, spawnY));
+    
+    return { x: spawnX, y: spawnY };
+}
+
+function findNearestResource(unit, resourceClassType) {
+    let nearestNode = null;
+    let minDistanceSq = Infinity;
+    const unitPos = { x: unit.worldX, y: unit.worldY };
+
+    resources.forEach(resource => {
+        if (resource.type !== resourceClassType || !resource.element?.isConnected) return;
+        if (resourceClassType === 'mine' && resource.health <= 0) return; // Skip depleted mines
+
+        // Check if another unit of the same faction is already targeting this resource
+        // This is a simple check; more sophisticated would be to see if it's "saturated"
+        const isTargetedByOwnFaction = units.some(u => 
+            u !== unit && 
+            u.faction === unit.faction && 
+            u.targetElement === resource.element && 
+            (u.state === 'moving_to_resource' || u.state === 'harvesting')
+        );
+        if (isTargetedByOwnFaction && resourceClassType === 'mine') return; // Allow multiple workers on trees
+
+        const bbox = resource.box || getElementWorldBoundingBox(resource.element);
+        if (!bbox || bbox.width === 0) return; // Invalid resource bounding box
+
+        const resourcePos = { x: bbox.centerX, y: bbox.centerY };
+        const distSq = distanceSq(unitPos, resourcePos); // distanceSq from main.js
+        if (distSq < minDistanceSq) {
+            minDistanceSq = distSq;
+            nearestNode = resource;
+        }
+    });
+    return nearestNode;
+}
+
+
+// --- AI Logic ---
+function updateSingleAI(currentAIFactionKey) {
+    // Ensure factionAiUpdateCounters is initialized for this faction
+    if (factionAiUpdateCounters[currentAIFactionKey] === undefined) {
+        factionAiUpdateCounters[currentAIFactionKey] = 0;
+    }
+
+    factionAiUpdateCounters[currentAIFactionKey]++;
+    if (factionAiUpdateCounters[currentAIFactionKey] < AI_UPDATE_INTERVAL || gameOver) {
+        return;
+    }
+    factionAiUpdateCounters[currentAIFactionKey] = 0;
+    
+    const isP1AI = currentAIFactionKey === p1FactionKey; 
+    let currentAIWood = isP1AI ? p1Wood : p2Wood; 
+    let currentAICoal = isP1AI ? p1Coal : p2Coal; 
+    let currentAIFood = isP1AI ? p1CurrentFood : p2CurrentFood; 
+    let currentAIFoodCap = isP1AI ? p1FoodCapacity : p2FoodCapacity; 
+    let currentAIBase = isP1AI ? playerBaseData : opponentBaseData; 
+    let enemyAIBase = isP1AI ? opponentBaseData : playerBaseData; 
+
+    if (!currentAIBase || currentAIBase.hp <= 0) {
+        // console.log(`AI (${currentAIFactionKey}): No base, cannot operate effectively.`);
+        return; 
+    }
+
+    const aiUnits = units.filter(u => u.faction === currentAIFactionKey && u.hp > 0); 
+    const aiWorkers = aiUnits.filter(u => u.unitType === 'worker'); 
+    const aiSoldiers = aiUnits.filter(u => u.unitType === 'soldier'); 
+    const aiArchers = aiUnits.filter(u => u.unitType === 'archer'); 
+    
+    const aiOwnBases = buildings.filter(b => b.faction === currentAIFactionKey && b.buildingType === 'base' && !b.isConstructing && b.hp > 0); 
+    const aiOwnBarracks = buildings.filter(b => b.faction === currentAIFactionKey && b.buildingType === 'barracks' && !b.isConstructing && b.hp > 0); 
+    const aiOwnArcheryRanges = buildings.filter(b => b.faction === currentAIFactionKey && b.buildingType === 'archer_trainer' && !b.isConstructing && b.hp > 0); 
+    const aiOwnFarmsCount = buildings.filter(b => b.faction === currentAIFactionKey && b.buildingType === 'farm' && !b.isConstructing && b.hp > 0).length; 
+    const aiOwnGuardTowersCount = buildings.filter(b => b.faction === currentAIFactionKey && b.buildingType === 'guard_tower' && !b.isConstructing && b.hp > 0).length; 
+    
+    const needsFood = (currentAIFoodCap - currentAIFood) < (aiWorkers.length > 1 ? 3 : 2); // Need more buffer
+    
+    const isBuildingFarm = constructions.some(c => c.faction === currentAIFactionKey && c.buildingType === 'farm'); 
+    const isBuildingBarracks = constructions.some(c => c.faction === currentAIFactionKey && c.buildingType === 'barracks'); 
+    const isBuildingArchery = constructions.some(c => c.faction === currentAIFactionKey && c.buildingType === 'archer_trainer'); 
+    const isBuildingGuardTower = constructions.some(c => c.faction === currentAIFactionKey && c.buildingType === 'guard_tower'); 
+
+    // Train Workers
+    if (aiOwnBases.length > 0 && !aiOwnBases[0].isTraining && aiWorkers.length < AI_TARGET_WORKERS && 
+        aiCanAffordGeneric(currentAIFactionKey, 'worker', true, currentAIWood, currentAICoal, currentAIFood, currentAIFoodCap)) {
+        trainUnit('worker', aiOwnBases[0]);
+        return; // Prioritize worker training early on
+    } 
+    
+    // Assign Idle Workers to Build or Gather
+    const availableBuilders = aiWorkers.filter(w => w.state === 'idle' && !w.ai_tasked && !w.constructionId); 
+    if (availableBuilders.length > 0) { 
+        const builder = availableBuilders[0]; 
+        let builtSomething = false;
+        if (needsFood && !isBuildingFarm && aiOwnFarmsCount < Math.ceil((aiWorkers.length + aiSoldiers.length + aiArchers.length + 2) / 4) && // Dynamic farm count
+            aiCanAffordGeneric(currentAIFactionKey, 'farm', false, currentAIWood, currentAICoal, currentAIFood, currentAIFoodCap)) { 
+            builtSomething = aiTryBuildGeneric(currentAIFactionKey, currentAIBase, 'farm', builder); 
+        } else if (aiOwnBarracks.length === 0 && !isBuildingBarracks && aiWorkers.length >=2 && 
+                   aiCanAffordGeneric(currentAIFactionKey, 'barracks', false, currentAIWood, currentAICoal, currentAIFood, currentAIFoodCap)) { 
+            builtSomething = aiTryBuildGeneric(currentAIFactionKey, currentAIBase, 'barracks', builder); 
+        } else if (aiOwnBarracks.length > 0 && aiOwnArcheryRanges.length === 0 && !isBuildingArchery && aiWorkers.length >= 3 && 
+                   aiCanAffordGeneric(currentAIFactionKey, 'archer_trainer', false, currentAIWood, currentAICoal, currentAIFood, currentAIFoodCap)) { 
+            builtSomething = aiTryBuildGeneric(currentAIFactionKey, currentAIBase, 'archer_trainer', builder); 
+        } else if (aiOwnBarracks.length > 0 && aiOwnGuardTowersCount < AI_TARGET_GUARD_TOWERS && !isBuildingGuardTower && aiWorkers.length >=3 && 
+                   currentAIWood > 50 && currentAICoal > 40 && // Higher resource threshold for towers
+                   aiCanAffordGeneric(currentAIFactionKey, 'guard_tower', false, currentAIWood, currentAICoal, currentAIFood, currentAIFoodCap) ) { 
+            builtSomething = aiTryBuildGeneric(currentAIFactionKey, currentAIBase, 'guard_tower', builder); 
+        }
+
+        if (!builtSomething && builder.state === 'idle') { // If didn't build, try to gather
+             let preferredType = (currentAIWood < currentAICoal * 1.2 || currentAIWood < 40 + aiWorkers.length * 5) ? 'tree' : 'mine'; 
+             if (currentAICoal < 25 + aiWorkers.length * 3 && currentAIWood > 50) preferredType = 'mine'; 
+             let targetNode = findNearestResource(builder, preferredType); 
+             if (!targetNode) { targetNode = findNearestResource(builder, preferredType === 'tree' ? 'mine' : 'tree'); } 
+             if (targetNode) { findAndTargetNearestResource(builder, targetNode.type, targetNode, true); }
+        }
+    } 
+    
+    // Train Combat Units
+    if (aiOwnBarracks.length > 0 && !aiOwnBarracks[0].isTraining && aiSoldiers.length < AI_TARGET_SOLDIERS && 
+        aiCanAffordGeneric(currentAIFactionKey, 'soldier', true, currentAIWood, currentAICoal, currentAIFood, currentAIFoodCap)) { 
+        trainUnit('soldier', aiOwnBarracks[0]); 
+    } else if (aiOwnArcheryRanges.length > 0 && !aiOwnArcheryRanges[0].isTraining && aiArchers.length < AI_TARGET_ARCHERS && 
+        aiCanAffordGeneric(currentAIFactionKey, 'archer', true, currentAIWood, currentAICoal, currentAIFood, currentAIFoodCap)) { 
+        trainUnit('archer', aiOwnArcheryRanges[0]); 
+    } 
+    
+    // Send Idle Combat Units to Attack
+    const idleCombatUnits = aiUnits.filter(u => (u.unitType === 'soldier' || u.unitType === 'archer') && u.state === 'idle' && !u.ai_tasked); 
+    if (idleCombatUnits.length > 2 && enemyAIBase && enemyAIBase.hp > 0) { // Attack if more than 2 idle combat units
+        idleCombatUnits.forEach(unit => { 
+            issueCommand(unit, { 
+                state: 'moving_to_attack', 
+                target: { x: enemyAIBase.box.centerX, y: enemyAIBase.box.centerY }, 
+                targetElement: enemyAIBase.element 
+            }, true); 
+        }); 
+    } 
+}
 
 
 // --- Main Game Loop ---
 function gameLoop(timestamp) {
-    if (currentGameState !== 'in_game' || gameOver) { // currentGameState from game-state.js
-        if (gameInitialized || currentGameState !== 'start_modal') { // gameInitialized from game-state.js
+    if (currentGameState !== 'in_game' || gameOver) {
+        if (gameInitialized || currentGameState !== 'start_modal') {
             requestAnimationFrame(gameLoop); 
         }
         return;
     }
 
-    const deltaTime = (lastTimestamp > 0) ? Math.min(50, timestamp - lastTimestamp) : 16.67; // lastTimestamp from game-state.js
+    const deltaTime = (lastTimestamp > 0) ? Math.min(50, timestamp - lastTimestamp) : 16.67; 
     lastTimestamp = timestamp; 
     const deltaFactor = deltaTime / 16.67; 
     
-    // Camera Panning (state from game-state.js, functions from main.js)
     let dxPan = 0, dyPan = 0; 
     if (keysPressed.w || keysPressed.arrowup) dyPan += PAN_SPEED; 
     if (keysPressed.s || keysPressed.arrowdown) dyPan -= PAN_SPEED; 
@@ -352,10 +1046,9 @@ function gameLoop(timestamp) {
         applyTransform(); 
     } 
     
-    // Update Units
-    units.forEach(unit => { // units from game-state.js
+    units.forEach(unit => {
         if (!unit.element || !unit.element.isConnected || unit.hp <= 0) return;
-        updateHpBar(unit); // from main.js
+        updateHpBar(unit); 
         let targetPos = unit.target;
         const isMovingState = unit.state === 'moving' || unit.state === 'moving_to_resource' || unit.state === 'returning' || unit.state === 'moving_to_build' || unit.state === 'moving_to_attack' || unit.state === 'retreating';
 
@@ -374,7 +1067,7 @@ function gameLoop(timestamp) {
                              buildings.find(b => b.element === unit.targetElement && b.hp > 0);
             if (targetData) {
                 const targetBox = getElementWorldBoundingBox(targetData.element);
-                targetPos = { x: targetBox.centerX, y: targetBox.centerY }; // Simplified target for attack-move
+                targetPos = { x: targetBox.centerX, y: targetBox.centerY }; 
                 unit.target = targetPos;
             } else { 
                 setUnitState(unit, 'idle'); return;
@@ -459,11 +1152,96 @@ function gameLoop(timestamp) {
             }
         }
         
-        if (unit.state === 'attacking' && unit.attackDamage > 0) { /* ... (Same as previous full code) ... */ }
+        if (unit.state === 'attacking' && unit.attackDamage > 0) {
+            const targetData = units.find(u => u.element === unit.targetElement && u.hp > 0) || 
+                             buildings.find(b => b.element === unit.targetElement && b.hp > 0);
+            
+            if (!targetData || targetData.faction === unit.faction || !targetData.element?.isConnected) {
+                setUnitState(unit, 'idle'); 
+            } else {
+                const targetBox = getElementWorldBoundingBox(targetData.element);
+                const distSqToEnemy = distanceSq({x: unit.worldX, y: unit.worldY}, {x: targetBox.centerX, y: targetBox.centerY});
+                const targetRadiusApproximation = Math.min(targetBox.width, targetBox.height) / 2;
+                const distToTargetEdgeApprox = Math.max(0, Math.sqrt(distSqToEnemy) - targetRadiusApproximation);
+
+                if (distToTargetEdgeApprox > unit.attackRange + ATTACK_RANGE_TOLERANCE) {
+                    issueCommand(unit, { 
+                        state: 'moving_to_attack', 
+                        target: { x: targetBox.centerX, y: targetBox.centerY }, 
+                        targetElement: targetData.element 
+                    }, (unit.faction !== playerFactionKey || gameMode === 'ai_vs_ai'));
+                } else { 
+                    if (!unit.lastAttackTime || timestamp - unit.lastAttackTime >= unit.attackSpeed) {
+                        dealDamage(targetData, unit.attackDamage);
+                        unit.lastAttackTime = timestamp;
+                    }
+                }
+            }
+        }
     });
     
-    buildings.forEach(bldg => { /* ... (Same as previous full code, including tower attack logic) ... */ });
-    for (let i = constructions.length - 1; i >= 0; i--) { /* ... (Same as previous full code) ... */ }
+    buildings.forEach(bldg => { 
+        updateHpBar(bldg); 
+        if (!bldg.isConstructing && bldg.isTraining && bldg.trainingTotalTime > 0) {
+            bldg.trainingProgress += deltaTime;
+            const progressPercent = Math.min(100, (bldg.trainingProgress / bldg.trainingTotalTime) * 100);
+            if (bldg.progressBarInner) bldg.progressBarInner.style.width = `${progressPercent}%`;
+            if (bldg.progressBarContainer && bldg.progressBarContainer.style.display === 'none') {
+                bldg.progressBarContainer.style.display = 'block';
+            }
+            if (bldg.trainingProgress >= bldg.trainingTotalTime) {
+                completeAnyUnitTraining(bldg);
+            }
+        }
+        if (!bldg.isConstructing && bldg.buildingType === 'guard_tower' && bldg.attackDamage > 0 && bldg.hp > 0) {
+            if (!bldg.lastAttackTime || timestamp - bldg.lastAttackTime >= bldg.attackSpeed) {
+                let closestEnemy = null;
+                let minDistSq = bldg.attackRange * bldg.attackRange;
+                const towerPos = { x: bldg.box.centerX, y: bldg.box.centerY };
+
+                units.forEach(unit => {
+                    if (unit.hp > 0 && unit.faction !== bldg.faction) {
+                        const unitPos = { x: unit.worldX, y: unit.worldY };
+                        const dSq = distanceSq(towerPos, unitPos);
+                        if (dSq < minDistSq) {
+                            minDistSq = dSq;
+                            closestEnemy = unit;
+                        }
+                    }
+                });
+                if (closestEnemy) {
+                    dealDamage(closestEnemy, bldg.attackDamage);
+                    bldg.lastAttackTime = timestamp;
+                }
+            }
+        }
+    });
+    
+    for (let i = constructions.length - 1; i >= 0; i--) { 
+        const cons = constructions[i];
+        if (!cons.isConstructing || !cons.element || !cons.element.isConnected) {
+            continue;
+        }
+        updateHpBar(cons); 
+        const worker = cons.assignedWorker; 
+        let isBuildingByWorker = false; 
+        if (worker && worker.state === 'building' && worker.constructionId === cons.id) { 
+            isBuildingByWorker = true; 
+            cons.progress += deltaTime; 
+            const hpGain = (cons.maxHp / cons.buildTime) * deltaTime; 
+            cons.hp = Math.min(cons.maxHp, cons.hp + hpGain); 
+            updateHpBar(cons); 
+        } 
+        if (cons.progressBarInner) { 
+            const progressPercent = Math.min(100, (cons.progress / cons.buildTime) * 100); 
+            cons.progressBarInner.style.width = `${progressPercent}%`; 
+            if(cons.progressBarContainer) cons.progressBarContainer.style.display = isBuildingByWorker ? 'block' : 'none'; 
+        } 
+        if(cons.element) cons.element.classList.toggle('building', isBuildingByWorker); 
+        if (cons.progress >= cons.buildTime) { 
+            completeConstruction(cons); 
+        } 
+    }
     
     aiGlobalUpdateCounter++;
     if (gameMode === 'ai_vs_ai') {
@@ -478,65 +1256,4 @@ function gameLoop(timestamp) {
     if (isDebugVisible) updateDebugPanel(); 
     
     requestAnimationFrame(gameLoop);
-}
-
-// --- Placeholder for functions that were in previous single file, ensure they are here or in main.js if UI related ---
-// Example: trainUnit would be here, as it's core game logic.
-/**
- * Initiates training a unit in a building.
- * @param {string} unitType - The type of unit to train.
- * @param {object} trainingBuilding - The building object that will train the unit.
- */
-function trainUnit(unitType, trainingBuilding) {
-    const factionKey = trainingBuilding.faction;
-    const unitStaticData = FACTION_DATA[factionKey]?.units[unitType];
-    const buildingStaticData = FACTION_DATA[factionKey]?.buildings[trainingBuilding.buildingType];
-
-    if (!unitStaticData || !trainingBuilding || trainingBuilding.isTraining || 
-        !buildingStaticData?.trains || buildingStaticData.trains !== unitType) {
-        // console.warn("GAME_LOGIC: Cannot train unit. Invalid data, building busy, or wrong unit type for building.");
-        return;
-    }
-
-    const cost = unitStaticData.cost;
-    let currentResWood = factionKey === playerFactionKey ? p1Wood : p2Wood;
-    let currentResCoal = factionKey === playerFactionKey ? p1Coal : p2Coal;
-    let currentFactionFood = factionKey === playerFactionKey ? p1CurrentFood : p2CurrentFood;
-    let currentFactionFoodCap = factionKey === playerFactionKey ? p1FoodCapacity : p2FoodCapacity;
-
-    if (currentResWood < (cost.wood || 0) || currentResCoal < (cost.coal || 0)) {
-        // console.log(`GAME_LOGIC: Not enough resources for ${factionKey} to train ${unitType}`);
-        if (factionKey === playerFactionKey && isDebugVisible) showTemporaryMessage(`Not enough resources for ${unitType}!`);
-        return;
-    }
-    if (currentFactionFood + unitStaticData.foodCost > currentFactionFoodCap) {
-        // console.log(`GAME_LOGIC: Not enough food capacity for ${factionKey} to train ${unitType}`);
-        if (factionKey === playerFactionKey && isDebugVisible) showTemporaryMessage(`Not enough food for ${unitType}!`);
-        return;
-    }
-
-    // Deduct resources
-    if (factionKey === playerFactionKey) {
-        p1Wood -= (cost.wood || 0);
-        p1Coal -= (cost.coal || 0);
-    } else {
-        p2Wood -= (cost.wood || 0);
-        p2Coal -= (cost.coal || 0);
-    }
-    updateResourceDisplay(); // In main.js - this will update for the current player
-
-    trainingBuilding.isTraining = true;
-    trainingBuilding.trainingUnitType = unitType;
-    trainingBuilding.trainingProgress = 0;
-    trainingBuilding.trainingTotalTime = unitStaticData.trainTime;
-
-    if (trainingBuilding.progressBarInner) trainingBuilding.progressBarInner.style.width = '0%';
-    if (trainingBuilding.progressBarContainer) trainingBuilding.progressBarContainer.style.display = 'block';
-    if (trainingBuilding.element) trainingBuilding.element.classList.add('training');
-
-    if (gameMode === 'human_vs_ai' && factionKey === playerFactionKey) {
-        updateCommandCard(); // In main.js
-        updateSelectionInfo(); // In main.js
-    }
-    // updateDebugPanel(); // Called by updateResourceDisplay
 }
