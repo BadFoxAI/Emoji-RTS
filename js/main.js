@@ -19,7 +19,7 @@ let viewportElement, gameWorld, modalOverlay, mainMenuOverlay, uiPanelElement, u
     debugP1Wood, debugP1Coal, debugP1Food, debugP1FoodCap,
     debugP2Wood, debugP2Coal, debugP2Food, debugP2FoodCap,
     debugP1BuildingCount, debugP2BuildingCount,
-    debugConstructionCount, debugResourceNodesCount,
+    debugConstructionCount, debugResourceNodesCount, 
     debugSelectedId, debugSelectedType, debugSelectedFactionSel, 
     debugSelectedHp, debugSelectedState, debugSelectedTarget;
 
@@ -99,6 +99,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (commandCardMenu) commandCardMenu.hide();
         if (contextMenu) contextMenu.hide();
         if (gameWorld) gameWorld.innerHTML = ''; 
+        // Game state (units, resources etc.) will be reset by initializeAndStartGame
     };
 
     // Viewport and global event listeners
@@ -109,9 +110,7 @@ document.addEventListener('DOMContentLoaded', () => {
     viewportElement.addEventListener('wheel', handleViewportWheel, { passive: false });
     viewportElement.addEventListener('contextmenu', (e) => { 
         if (currentGameState !== 'in_game') return;
-        // JSRTSMenu's internal listeners should call stopPropagation if they handle it.
-        // We only call gameHandleContextMenu if it wasn't already handled (e.g., by a browser extension)
-        if (e.defaultPrevented && contextMenu && contextMenu.isVisible) return; 
+        if (e.defaultPrevented && contextMenu && contextMenu.isVisible) return;
         gameHandleContextMenu(e); 
     });
 
@@ -119,7 +118,7 @@ document.addEventListener('DOMContentLoaded', () => {
     window.addEventListener('keyup', handleGlobalKeyUp);
 
     // Show start modal initially
-    setCurrentGameState('start_modal'); // setCurrentGameState from game-state.js
+    setCurrentGameState('start_modal'); 
     if(modalOverlay) modalOverlay.style.display = 'flex';
 });
 
@@ -144,10 +143,10 @@ function startGameWithOptions(mode, p1Key, p2KeyIfAiVsAi = null) {
     // Set global game state variables (from game-state.js)
     gameMode = mode; 
     p1FactionKey = p1Key; 
-    playerFactionKey = p1Key; // In human_vs_ai, p1 is always the human player. In ai_vs_ai, p1 is just the first AI.
+    playerFactionKey = p1Key; 
     
     if (gameMode === 'ai_vs_ai') {
-        p2FactionKey = p2KeyIfAiVsAi || (p1Key === 'human' ? 'zombie' : 'human'); // Default P2 if not specified for AIvAI
+        p2FactionKey = p2KeyIfAiVsAi || (p1Key === 'human' ? 'zombie' : 'human'); 
         opponentFactionKey = p2FactionKey; 
     } else { // human_vs_ai
         p2FactionKey = (p1Key === 'human') ? 'zombie' : 'human'; 
@@ -158,7 +157,7 @@ function startGameWithOptions(mode, p1Key, p2KeyIfAiVsAi = null) {
     if(mainMenuOverlay) mainMenuOverlay.style.display = 'none';
     if(uiPanelElement) uiPanelElement.style.visibility = (gameMode === 'human_vs_ai') ? 'visible' : 'hidden';
     if(viewportElement) viewportElement.style.visibility = 'visible';
-    setCurrentGameState('in_game'); 
+    setCurrentGameState('in_game'); // from game-state.js
     initializeAndStartGame(); // This function is now in this file
 }
 
@@ -179,7 +178,6 @@ function initializeAndStartGame() {
 
     // FACTION_DATA is globally available from game-data.js
     // Constants it uses (STARTING_FOOD_CAP, FARM_TOTAL_SIZE) are also global from game-data.js
-    // No need to redefine FACTION_DATA here, it's already defined in game-data.js
 
     currentWorldWidth = WORLD_WIDTH; // from game-data.js
     currentWorldHeight = WORLD_HEIGHT; // from game-data.js
@@ -190,7 +188,7 @@ function initializeAndStartGame() {
     p2Wood = INITIAL_WOOD; p2Coal = INITIAL_COAL;
     p2CurrentFood = 0; p2FoodCapacity = STARTING_FOOD_CAP;
     
-    // Initialize AI update counters for the current factions
+    // Initialize AI update counters for the current factions (from game-state.js)
     factionAiUpdateCounters[p1FactionKey] = 0; 
     factionAiUpdateCounters[p2FactionKey] = 0;
 
@@ -200,7 +198,12 @@ function initializeAndStartGame() {
         console.error("MAIN.JS: FATAL ERROR during map/base initialization:", error);
         setCurrentGameState('start_modal'); 
         if(modalOverlay) modalOverlay.style.display = 'flex';
-        // TODO: Add a user-friendly error message to the modal here
+        const modalContent = document.getElementById('start-modal'); // Display error in modal
+        if (modalContent) { 
+            let errorP = modalContent.querySelector('.error-message'); 
+            if (!errorP) { errorP = document.createElement('p'); errorP.className = 'error-message'; errorP.style.color = 'red'; modalContent.appendChild(errorP); } 
+            errorP.textContent = "Initialization Error: " + error.message; 
+        }
         return;
     }
     setGameInitialized(true); // from game-state.js
@@ -210,7 +213,6 @@ function initializeAndStartGame() {
     updateSelectionInfo();
     updateCommandCard(); 
     
-    // Center camera
     if (playerBaseData && playerBaseData.box) { 
         centerViewOn(playerBaseData.box.centerX, playerBaseData.box.centerY);
     } else if (WORLD_WIDTH && WORLD_HEIGHT) { 
@@ -256,16 +258,14 @@ function updateResourceDisplay() {
             if(foodCountSpan) foodCountSpan.textContent = p1CurrentFood;
             if(foodCapSpan) foodCapSpan.textContent = p1FoodCapacity;
         }
-        // Update P2 resources for debug or AI internal state (already happens in game-state.js)
         p2CurrentFood = calculateCurrentFood(p2FactionKey);
         p2FoodCapacity = calculateFoodCapacity(p2FactionKey);
     } catch (e) { console.error("MAIN.JS: Resource display error:", e); }
     
-    // If the command card is visible, refresh it as resource changes might affect button states
     if (commandCardMenu && commandCardMenu.isVisible && currentGameState === 'in_game') { 
         updateCommandCard(); 
     }
-    updateDebugPanel(); // Update debug info, which also shows resources
+    updateDebugPanel(); 
 }
 
 /** Updates the selection information panel. */
@@ -274,9 +274,9 @@ function updateSelectionInfo() {
     if (gameMode === 'ai_vs_ai') { selectionInfoDiv.innerHTML = "AI vs AI - Watching..."; return; }
     
     let text = 'Selected: None';
-    if (selectedUnit) { // selectedUnit from game-state.js
+    if (selectedUnit) { 
         text = `Selected: ${getEmojiForFaction(selectedUnit.unitType, selectedUnit.faction)} Unit ${selectedUnit.id} (${selectedUnit.unitType}, ${selectedUnit.hp}/${selectedUnit.maxHp} HP, Faction: ${selectedUnit.faction}, State: ${selectedUnit.state})`; 
-    } else if (selectedBuilding) { // selectedBuilding from game-state.js
+    } else if (selectedBuilding) { 
         if (selectedBuilding.isConstructing){ 
             text = `Selected: ${getEmojiForFaction(selectedBuilding.buildingType, selectedBuilding.faction)} Site ${selectedBuilding.id} (${selectedBuilding.hp}/${selectedBuilding.maxHp} HP, Constructing...)`;
         } else if (selectedBuilding.faction === playerFactionKey) { 
@@ -287,11 +287,11 @@ function updateSelectionInfo() {
             if(selectedBuilding.isTraining) { text += ` (Training...)`; } 
             else if (selectedBuilding.isConstructing) { text += ` (Constructing...)`; }
         }
-    } else if (placingBuildingType) { // placingBuildingType from game-state.js
+    } else if (placingBuildingType) { 
         text = `Placing ${getEmojiForFaction(placingBuildingType, playerFactionKey)} ${placingBuildingType}...`; 
     }
     selectionInfoDiv.innerHTML = text;
-    updateDebugPanel(); // Refresh debug panel which also shows selection details
+    updateDebugPanel(); 
 }
 
 /** Updates or shows/hides the command card based on current selection. */
@@ -307,14 +307,12 @@ function updateCommandCard() {
     if (selectedUnit && selectedUnit.faction === playerFactionKey) {
         switch (selectedUnit.unitType) {
             case 'worker': builderFn = buildWorkerCommandCard; break;
-            // TODO: Add command card builders for other player unit types
         }
     } else if (selectedBuilding && selectedBuilding.faction === playerFactionKey && !selectedBuilding.isConstructing) {
          switch (selectedBuilding.buildingType) {
             case 'base': builderFn = buildBaseCommandCard; break;
             case 'barracks': builderFn = buildBarracksCommandCard; break;
             case 'archer_trainer': builderFn = buildArcherTrainerCommandCard; break;
-            // TODO: Add command card builders for other player building types
         }
     }
 
@@ -326,11 +324,9 @@ function updateCommandCard() {
 }
 
 // --- JSRTSMenu Builder Functions ---
-// These functions define the content of command cards and context menus.
-
 function buildWorkerCommandCard() {
-    const currentFactionStaticData = FACTION_DATA[playerFactionKey]; // FACTION_DATA from game-data.js
-    const canAfford = (cost) => p1Wood >= (cost.wood || 0) && p1Coal >= (cost.coal || 0); // p1Wood etc from game-state.js
+    const currentFactionStaticData = FACTION_DATA[playerFactionKey]; 
+    const canAfford = (cost) => p1Wood >= (cost.wood || 0) && p1Coal >= (cost.coal || 0); 
 
     const buildActionsSubmenu = () => {
         commandCardMenu.addBackButton();
@@ -372,7 +368,7 @@ function buildBaseCommandCard() {
         `Train ${getEmojiForFaction(unitToTrain, playerFactionKey)} ${unitToTrain}`,
         () => { 
             if(canAffordRes && hasFoodCap && !selectedBuilding.isTraining) { 
-                trainUnit(unitToTrain, selectedBuilding); // trainUnit from game-logic.js
+                trainUnit(unitToTrain, selectedBuilding); 
                 updateCommandCard(); 
             } else {
                 if (!canAffordRes) showTemporaryMessage("Not enough resources!");
@@ -592,7 +588,7 @@ function gameHandleContextMenu(event) {
 
         if (targetUnitData) { handleUnitClick(targetUnitData); } 
         else if (targetBuildingData) { handleBuildingClick(targetBuildingData); }
-        else if (targetConstructionSite) { handleBuildingClick(targetConstructionSite); } // Allow selecting own construction sites
+        else if (targetConstructionSite) { handleBuildingClick(targetConstructionSite); } 
         return; 
     } else { return; }
 
@@ -639,14 +635,17 @@ function handleGlobalKeyDown(e) {
                 }
             }
         } else if (selectedUnit && selectedUnit.unitType === 'worker' && selectedUnit.faction === playerFactionKey) {
-            if (key === 'b') { 
+            if (key === 'b') { // Worker's "Build" master hotkey
                 if (isDebugVisible) console.log("MAIN.JS: Global hotkey - Trigger Worker Build Menu (B)");
+                // If command card is open, find and click the "Build" button in it
                 if (commandCardMenu && commandCardMenu.isVisible) {
                     const buildButtonData = commandCardMenu.buttonsData.find(bd => bd.label.toLowerCase() === "build" && bd.options.opensSubmenu);
-                    if (buildButtonData && buildButtonData.callback && !buildButtonData.disabled) { buildButtonData.callback(); }
-                } else { 
-                    updateCommandCard(); 
-                    setTimeout(() => { 
+                    if (buildButtonData && buildButtonData.callback && !buildButtonData.disabled) {
+                        buildButtonData.callback(); // This should call openSubmenu on JSRTSMenu
+                    }
+                } else { // If command card not open, show it, then try to open build submenu
+                    updateCommandCard(); // Make sure card is there
+                    setTimeout(() => { // Allow card to render
                          const buildButtonData = commandCardMenu?.buttonsData.find(bd => bd.label.toLowerCase() === "build" && bd.options.opensSubmenu);
                          if (buildButtonData && buildButtonData.callback && !buildButtonData.disabled) buildButtonData.callback();
                     }, 50); 
@@ -654,6 +653,7 @@ function handleGlobalKeyDown(e) {
                 e.preventDefault(); return;
             }
             
+            // Direct building hotkeys (F for Farm, X for Barracks etc. from FACTION_DATA)
             for (const buildingKey in FACTION_DATA[playerFactionKey].buildings) {
                 const buildingData = FACTION_DATA[playerFactionKey].buildings[buildingKey];
                 if (buildingData.hotkey && key === buildingData.hotkey) {
@@ -670,8 +670,9 @@ function handleGlobalKeyDown(e) {
 
         if (key === 'escape') {
             if (contextMenu && contextMenu.isVisible) { contextMenu.hide(); e.preventDefault(); return; }
-            if (commandCardMenu && commandCardMenu.isVisible && commandCardMenu.menuStateStack.length > 0) { /* JSRTSMenu handles Esc for its submenus */ }
-            else if (placingBuildingType || placingFarm) { if(cancelPlacement) cancelPlacement(); e.preventDefault(); return;}
+            // JSRTSMenu's internal Escape listener handles its own submenus.
+            // If commandCardMenu is visible at its root, its listener also handles Esc to hide.
+            if (placingBuildingType || placingFarm) { if(cancelPlacement) cancelPlacement(); e.preventDefault(); return;}
             else if (selectedUnit || selectedBuilding) { if(deselectAll) deselectAll(); e.preventDefault(); return;}
             else { showMainMenu(); e.preventDefault(); return;} 
         }
@@ -999,8 +1000,8 @@ function updateDebugPanel() {
 
 // --- Game Over Display ---
 function showGameOver(winnerFactionKey) { 
-    setGameInitialized(false); 
-    setGameOver(true);       
+    setGameInitialized(false); // from game-state.js
+    setGameOver(true);       // from game-state.js
     const winnerName = winnerFactionKey === "Draw" ? "It's a Draw!" : (FACTION_DATA[winnerFactionKey]?.name || winnerFactionKey) + " Wins!"; 
     if(gameOverMessageDiv) {
         gameOverMessageDiv.innerHTML = `<h2>Game Over!</h2><p>${winnerName}</p><button id="gameOverPlayAgain">Play Again?</button>`; 
@@ -1047,7 +1048,6 @@ function showTemporaryMessage(message, duration = 2000) {
     msgDiv.textContent = message;
     msgDiv.style.opacity = '1';
     
-    // Clear any existing timeout for this div to avoid premature removal
     if (msgDiv.hideTimeout) clearTimeout(msgDiv.hideTimeout);
     if (msgDiv.removeTimeout) clearTimeout(msgDiv.removeTimeout);
 
@@ -1072,12 +1072,12 @@ function checkAABBOverlap(box1, box2, padding = 0) {
     ); 
 }
 
-// Utility function to calculate current food used by a faction
+// Utility function to calculate current food used by a faction (needed by UI for display and JSRTSMenu builders)
 function calculateCurrentFood(factionKeyToCalc) { 
     return units.reduce((sum, u) => sum + (u.faction === factionKeyToCalc ? (FACTION_DATA[factionKeyToCalc]?.units[u.unitType]?.foodCost || 0) : 0), 0); 
 }
 
-// Utility function to calculate total food capacity for a faction
+// Utility function to calculate total food capacity for a faction (needed by UI for display and JSRTSMenu builders)
 function calculateFoodCapacity(factionKeyToCalc) { 
     let capacity = 0; 
     buildings.forEach(b => { 
@@ -1088,5 +1088,5 @@ function calculateFoodCapacity(factionKeyToCalc) {
             } 
         } 
     }); 
-    return Math.max(STARTING_FOOD_CAP, capacity); // STARTING_FOOD_CAP from game-data.js
+    return Math.max(STARTING_FOOD_CAP, capacity); 
 }
