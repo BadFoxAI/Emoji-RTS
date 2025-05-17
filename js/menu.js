@@ -1,8 +1,11 @@
 // js/menu.js
 // Contains the JSRTSMenu component and CooldownManager.
+// This is a reusable UI component.
 
 "use strict";
 
+// --- Icon Placeholders (or actual SVGs/paths if you have them) ---
+// These are used by JSRTSMenu if items are given iconSrc options.
 const RTS_MENU_ICONS = { 
     SAVE:'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16"><rect width="16" height="16" fill="%234CAF50"/></svg>',
     LOAD:'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16"><rect width="16" height="16" fill="%232196F3"/></svg>',
@@ -17,36 +20,141 @@ const RTS_MENU_ICONS = {
     BACK:'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="%2303A9F4" viewBox="0 0 24 24"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg>' 
 };
 
+/**
+ * Manages cooldowns for abilities or actions.
+ */
 class CooldownManager { 
-    constructor() { this.cooldowns = new Map(); } 
-    start(abilityId, durationSeconds) { if (!abilityId || typeof abilityId !== 'string' || durationSeconds <= 0) { return; } const endTime = Date.now() + durationSeconds * 1000; this.cooldowns.set(abilityId, endTime); } 
-    isOnCooldown(abilityId) { if (!abilityId) return false; const endTime = this.cooldowns.get(abilityId); return endTime && Date.now() < endTime; } 
-    getRemainingSeconds(abilityId) { if (!abilityId) return 0; const endTime = this.cooldowns.get(abilityId); if (endTime && Date.now() < endTime) { return Math.max(0, (endTime - Date.now()) / 1000); } return 0; } 
+    constructor() { 
+        this.cooldowns = new Map(); 
+    } 
+    /**
+     * Starts a cooldown for a given ability.
+     * @param {string} abilityId - Unique identifier for the ability.
+     * @param {number} durationSeconds - Duration of the cooldown in seconds.
+     */
+    start(abilityId, durationSeconds) { 
+        if (!abilityId || typeof abilityId !== 'string' || durationSeconds <= 0) { 
+            // console.warn("CooldownManager: Invalid parameters for start().", {abilityId, durationSeconds}); 
+            return; 
+        } 
+        const endTime = Date.now() + durationSeconds * 1000; 
+        this.cooldowns.set(abilityId, endTime); 
+    } 
+    /**
+     * Checks if an ability is currently on cooldown.
+     * @param {string} abilityId - The ID of the ability.
+     * @returns {boolean} True if on cooldown, false otherwise.
+     */
+    isOnCooldown(abilityId) { 
+        if (!abilityId) return false; 
+        const endTime = this.cooldowns.get(abilityId); 
+        return endTime && Date.now() < endTime; 
+    } 
+    /**
+     * Gets the remaining cooldown time in seconds for an ability.
+     * @param {string} abilityId - The ID of the ability.
+     * @returns {number} Remaining seconds, or 0 if not on cooldown.
+     */
+    getRemainingSeconds(abilityId) { 
+        if (!abilityId) return 0; 
+        const endTime = this.cooldowns.get(abilityId); 
+        if (endTime && Date.now() < endTime) { 
+            return Math.max(0, (endTime - Date.now()) / 1000); 
+        } 
+        return 0; 
+    } 
 }
 
+/**
+ * @class JSRTSMenu
+ * A script-driven, accessible menu system.
+ */
 class JSRTSMenu {
-    constructor(containerId, cooldownManagerInstance) { this.container = document.getElementById(containerId); if (!this.container) { console.error(`JSRTSMenu Error: Container ID "${containerId}" not found.`); return; } if (!cooldownManagerInstance || typeof cooldownManagerInstance.isOnCooldown !== 'function') { console.error(`JSRTSMenu Error: Valid CooldownManager instance is required.`); return; } this.cooldownManager = cooldownManagerInstance; this.buttonsData = []; this.isVisible = false; this.menuStateStack = []; this.currentBuilderFn = null; this.visualCooldownTimers = new Map(); this.focusedIndex = -1; this.baseMenuId = containerId; this.nextItemId = 0; this.triggerElementForCurrentSequence = null; this.lastContextMenuTargetIsBody = null; this.currentSequenceAnchor = null; this.tooltipElement = document.getElementById('js-rts-menu-global-tooltip'); if (!this.tooltipElement) { this.tooltipElement = document.createElement('div'); this.tooltipElement.id = 'js-rts-menu-global-tooltip'; this.tooltipElement.className = 'menu-tooltip'; this.tooltipElement.setAttribute('role', 'tooltip'); this.tooltipElement.setAttribute('aria-hidden', 'true'); document.body.appendChild(this.tooltipElement); console.warn("JSRTSMenu Warning: Global tooltip element '#js-rts-menu-global-tooltip' not found, created fallback."); } this.tooltipElement.setAttribute('tabindex', '-1'); this.activeTooltipTarget = null; this.tooltipShowTimeout = null; this.tooltipHideTimeout = null; this.tooltipShowDelay = 400; this.searchQuery = ''; this.searchTimeout = null; this.searchDelay = 700; this.container.setAttribute('role', 'menu'); this.container.setAttribute('aria-orientation', 'vertical'); this._setupGlobalListeners(); }
-    _clearSearchState(logMessage = "JSRTSMenu: Search query cleared.") { clearTimeout(this.searchTimeout); this.searchQuery = ''; this.searchTimeout = null; if(logMessage && logMessage.length > 0 && window.isDebugVisible) { console.log(logMessage); } }
+    constructor(containerId, cooldownManagerInstance) { 
+        this.container = document.getElementById(containerId); 
+        if (!this.container) { console.error(`JSRTSMenu Error: Container ID "${containerId}" not found.`); return; } 
+        if (!cooldownManagerInstance || typeof cooldownManagerInstance.isOnCooldown !== 'function') { 
+            console.error(`JSRTSMenu Error: Valid CooldownManager instance is required.`); return; 
+        }
+        this.cooldownManager = cooldownManagerInstance; 
+        this.buttonsData = []; 
+        this.isVisible = false; 
+        this.menuStateStack = []; 
+        this.currentBuilderFn = null; 
+        this.visualCooldownTimers = new Map(); 
+        this.focusedIndex = -1; 
+        this.baseMenuId = containerId; 
+        this.nextItemId = 0; 
+        this.triggerElementForCurrentSequence = null; 
+        this.lastContextMenuTargetIsBody = null; 
+        this.currentSequenceAnchor = null; 
+        this.tooltipElement = document.getElementById('js-rts-menu-global-tooltip'); 
+        if (!this.tooltipElement) { 
+            this.tooltipElement = document.createElement('div'); 
+            this.tooltipElement.id = 'js-rts-menu-global-tooltip'; 
+            this.tooltipElement.className = 'menu-tooltip'; // Ensure this class is styled in main CSS
+            this.tooltipElement.setAttribute('role', 'tooltip'); 
+            this.tooltipElement.setAttribute('aria-hidden', 'true'); 
+            document.body.appendChild(this.tooltipElement); 
+            console.warn("JSRTSMenu Warning: Global tooltip element '#js-rts-menu-global-tooltip' not found, created fallback."); 
+        }
+        this.tooltipElement.setAttribute('tabindex', '-1'); 
+        this.activeTooltipTarget = null; 
+        this.tooltipShowTimeout = null; 
+        this.tooltipHideTimeout = null; 
+        this.tooltipShowDelay = 400; 
+        this.searchQuery = ''; 
+        this.searchTimeout = null; 
+        this.searchDelay = 700; 
+        this.container.setAttribute('role', 'menu'); 
+        this.container.setAttribute('aria-orientation', 'vertical'); 
+        this._setupGlobalListeners(); 
+    }
+
+    _clearSearchState(logMessage = "JSRTSMenu: Search query cleared.") { 
+        clearTimeout(this.searchTimeout); 
+        this.searchQuery = ''; 
+        this.searchTimeout = null; 
+        // Accessing global isDebugVisible (from game-state.js, loaded later)
+        // This will only work if isDebugVisible is truly global (window.isDebugVisible) or passed in.
+        // For now, let's assume it will be defined on window for simplicity in this non-module setup.
+        if(logMessage && logMessage.length > 0 && window.isDebugVisible) { 
+            console.log(logMessage); 
+        } 
+    }
+
     _setupGlobalListeners() { 
         document.addEventListener('click', (event) => { 
             if (this.isVisible && !this.container.contains(event.target) && !event.target.closest(`#${this.container.id}`)) { 
                 if (this.triggerElementForCurrentSequence && this.triggerElementForCurrentSequence.contains(event.target)) { return; } 
+                // Special check for command card: if click is inside its panel, don't hide
                 const commandCardPanel = document.getElementById('command-card-container');
-                if (commandCardPanel && commandCardPanel.contains(event.target) && this.container.id === 'command-card-menu-actual-container') { return; } 
+                if (commandCardPanel && commandCardPanel.contains(event.target) && this.container.id === 'command-card-menu-actual-container') {
+                     return; 
+                }
                 this.hide(); 
             } 
         }); 
+        
         document.addEventListener('keydown', (event) => { 
             if (!this.isVisible) return; 
             const activeElement = document.activeElement; 
             if (activeElement !== this.container && activeElement && (activeElement.tagName === 'INPUT' || activeElement.tagName === 'TEXTAREA' || activeElement.isContentEditable)) return; 
+            
             const pressedKey = event.key.toLowerCase(); 
             let keyHandledByMenu = false; 
+            
+            // 1. Type-ahead Search
             if (event.key.length === 1 && event.key !== ' ' && !event.ctrlKey && !event.metaKey && !event.altKey) { 
-                event.preventDefault(); event.stopPropagation(); this.searchQuery += pressedKey; this._performSearch(); keyHandledByMenu = true; 
+                event.preventDefault(); event.stopPropagation(); 
+                this.searchQuery += pressedKey; this._performSearch(); 
+                keyHandledByMenu = true; 
             } 
             if (keyHandledByMenu) return; 
+            
+            // 2. Hotkeys for currently visible menu items
             let specificHotkeyMatched = false; 
+            // Allow space for hotkeys if not already handled by activateFocusedItem
             if (this.buttonsData.length > 0 && (event.key.length > 1 || event.key === ' ' || event.ctrlKey || event.altKey || event.metaKey )) { 
                 for (const btnData of this.buttonsData) { 
                     if (btnData.hotkey && btnData.hotkey.toLowerCase() === pressedKey) { 
@@ -66,6 +174,8 @@ class JSRTSMenu {
                 } 
             } 
             if (specificHotkeyMatched) return; 
+            
+            // 3. Navigation and Activation Keys
             switch (event.key) { 
                 case 'Backspace': event.preventDefault(); event.stopPropagation(); if (this.searchQuery.length > 0) { this.searchQuery = this.searchQuery.slice(0, -1); if (this.searchQuery.length > 0) { this._performSearch(); } else { this._clearSearchState("JSRTSMenu: Search query cleared by backspace."); const currentFocusedItem = this.buttonsData[this.focusedIndex]; if (currentFocusedItem && currentFocusedItem.element && !currentFocusedItem.isSeparator && !currentFocusedItem.disabled) { this._setFocus(this.focusedIndex); } else { this.navigateToFirst(); } } } break; 
                 case 'Escape': event.preventDefault(); event.stopPropagation(); if (this.searchQuery !== '') { this._clearSearchState("JSRTSMenu: Escape cleared active search."); const currentFocusedItem = this.buttonsData[this.focusedIndex]; if (currentFocusedItem && currentFocusedItem.element && !currentFocusedItem.isSeparator && !currentFocusedItem.disabled) { this._setFocus(this.focusedIndex); } else { this.navigateToFirst(); } } else { if (this.menuStateStack.length > 0) { const parentState = this.menuStateStack.pop(); if (parentState && parentState.builder) { this.triggerElementForCurrentSequence = parentState.overallTriggerElement; this.currentSequenceAnchor = parentState.parentAnchor; this.show(this.currentSequenceAnchor, parentState.builder, parentState.triggerItemIndexInParent); } } else { this.hide(); } } break; 
@@ -78,6 +188,7 @@ class JSRTSMenu {
             } 
         }); 
     }
+
     _performSearch() { clearTimeout(this.searchTimeout); if (!this.searchQuery) { this._clearSearchState("JSRTSMenu: Search query became empty, search stopped."); return; } let firstMatchIndex = -1; for (let i = 0; i < this.buttonsData.length; i++) { const itemData = this.buttonsData[i]; if (itemData.element && !itemData.isSeparator && !itemData.disabled) { const labelText = itemData.label.toLowerCase(); if (labelText.startsWith(this.searchQuery)) { firstMatchIndex = i; break; } } } if (firstMatchIndex !== -1) { this._setFocus(firstMatchIndex); } this.searchTimeout = setTimeout(() => { this._clearSearchState(); }, this.searchDelay); }
     _generateUniqueId() { return `${this.baseMenuId}-item-${this.nextItemId++}`; }
     _canActivateItem(bd) { return bd && !bd.isSeparator && !bd.disabled && !(bd.options?.abilityId && this.cooldownManager.isOnCooldown(bd.options.abilityId)) && typeof bd.callback === 'function';}
@@ -102,14 +213,16 @@ class JSRTSMenu {
             callbackResult = buttonData.callback(); 
         } 
         this._clearSearchState(null); 
-        if (callbackResult !== true) {
-            if (this.container.id !== 'command-card-menu-actual-container') {
+        
+        if (callbackResult !== true) { // If callback doesn't return true to keep menu open
+            if (this.container.id !== 'command-card-menu-actual-container') { // Popups like context menu
                 this.hide();
             } else if (this.container.id === 'command-card-menu-actual-container' && buttonData.options?.opensSubmenu) {
                 // Submenu was opened from command card, command card itself (parent) stays.
+                // The submenu will be a different JSRTSMenu instance or handled by redrawing this one.
             } else if (this.container.id === 'command-card-menu-actual-container') {
-                // Standard action on command card - it persists unless the game logic explicitly
-                // calls updateCommandCard() which might hide it if selection changes.
+                // Standard action on command card. By default, let it persist.
+                // Game logic (e.g., unit deselection) should trigger `updateCommandCard()` which might hide it.
             }
         }
     }
@@ -136,6 +249,7 @@ class JSRTSMenu {
         
         const menuItems = this.buttonsData.filter(b => b.element && !b.isSeparator); 
         // Allow empty command card to show (e.g. selected enemy with no actions for player)
+        // but hide empty context menus.
         if (menuItems.length === 0 && this.container.id !== 'command-card-menu-actual-container' && this.menuStateStack.length === 0) { 
             this.hide(); return; 
         } 
@@ -150,24 +264,24 @@ class JSRTSMenu {
         const viewportHeight = window.innerHeight; 
         const maxMenuHeight = viewportHeight * 0.85; 
         
+        // Apply max height and scroll for popups if they exceed viewport allowance
         if (this.container.id !== 'command-card-menu-actual-container' && menuActualHeight > maxMenuHeight) { 
             this.container.style.maxHeight = `${maxMenuHeight}px`; 
             this.container.style.overflowY = 'auto'; 
         } 
         
-        const menuRect = this.container.getBoundingClientRect(); 
+        const menuRect = this.container.getBoundingClientRect(); // Get dimensions after content & potential scroll
         const menuWidth = menuRect.width; 
         let menuHeightToUse = menuRect.height; 
         
-        // Special handling for command card: it's placed within its panel
         if (this.container.id === 'command-card-menu-actual-container') {
             const panel = document.getElementById('command-card-container');
             if (panel) {
-                if (this.container.parentNode !== panel) { // Append only if not already there
+                if (this.container.parentNode !== panel) { 
                     panel.appendChild(this.container);
                 }
                 // CSS handles its static positioning within the panel
-                this.container.style.left = ''; // No absolute positioning needed
+                this.container.style.left = ''; 
                 this.container.style.top = '';
             } else {
                 console.error("JSRTSMenu Error: Command card panel '#command-card-container' not found!");
@@ -179,7 +293,7 @@ class JSRTSMenu {
             const vpH = window.innerHeight; 
             const sX = window.pageXOffset; 
             const sY = window.pageYOffset; 
-            const m = 5; // Margin from edge
+            const m = 5; 
 
             if (anchorForThisView instanceof HTMLElement) { 
                 const tR = anchorForThisView.getBoundingClientRect(); 
