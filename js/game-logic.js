@@ -10,6 +10,24 @@
 // due to script load order. It also assumes helper functions from 'main.js' (like updateHpBar,
 // placeElementInWorld, getElementWorldBoundingBox, etc.) are globally accessible.
 
+
+/**
+ * Calculates the squared distance between two points.
+ * Avoids a square root operation if only comparing distances.
+ * @param {object} pos1 - {x, y}
+ * @param {object} pos2 - {x, y}
+ * @returns {number} The squared distance.
+ */
+function distanceSq(pos1, pos2) {
+    if (!pos1 || !pos2 || typeof pos1.x !== 'number' || typeof pos1.y !== 'number' || typeof pos2.x !== 'number' || typeof pos2.y !== 'number') {
+        console.error("GAME_LOGIC: Invalid input to distanceSq", pos1, pos2);
+        return Infinity; // Return a large number to avoid breaking further logic if possible
+    }
+    const dx = pos1.x - pos2.x;
+    const dy = pos1.y - pos2.y;
+    return dx * dx + dy * dy;
+}
+
 // --- Entity Creation & Management Functions ---
 
 /**
@@ -807,7 +825,7 @@ function trainUnit(unitType, trainingBuilding) {
 
     if (!unitStaticData || !trainingBuilding || trainingBuilding.isTraining || 
         !buildingStaticData?.trains || buildingStaticData.trains !== unitType) {
-        if(isDebugVisible) console.warn("GAME_LOGIC: Cannot train unit. Invalid data, building busy, or wrong unit type for building.");
+        if(typeof isDebugVisible !== 'undefined' && isDebugVisible) console.warn("GAME_LOGIC: Cannot train unit. Invalid data, building busy, or wrong unit type for building.");
         return;
     }
 
@@ -923,7 +941,7 @@ function getSpawnPosition(buildingElement, index, totalUnitsOfType = 1) {
         console.warn("GAME_LOGIC: getSpawnPosition called with no buildingElement, defaulting to center.");
         return { x: currentWorldWidth / 2, y: currentWorldHeight / 2 };
     }
-    const bBox = getElementWorldBoundingBox(buildingElement); // from main.js
+    const bBox = getElementWorldBoundingBox(buildingElement); 
     if (bBox.width === 0 && bBox.height === 0) { 
         console.warn("GAME_LOGIC: getSpawnPosition buildingElement has zero dimensions, defaulting to center.");
         return { x: currentWorldWidth / 2, y: currentWorldHeight / 2 };
@@ -966,7 +984,7 @@ function findNearestResource(unit, resourceClassType) {
         if (!bbox || bbox.width === 0) return; 
 
         const resourcePos = { x: bbox.centerX, y: bbox.centerY };
-        const distSq = distanceSq(unitPos, resourcePos); // distanceSq from main.js
+        const distSq = distanceSq(unitPos, resourcePos); // distanceSq is now in this file
         if (distSq < minDistanceSq) {
             minDistanceSq = distSq;
             nearestNode = resource;
@@ -991,7 +1009,7 @@ function updateSingleAI(currentAIFactionKey) {
     const isP1AI = currentAIFactionKey === p1FactionKey; 
     let currentAIWood = isP1AI ? p1Wood : p2Wood; 
     let currentAICoal = isP1AI ? p1Coal : p2Coal; 
-    let currentAIFood = calculateCurrentFood(currentAIFactionKey); // Recalculate fresh food state for AI
+    let currentAIFood = calculateCurrentFood(currentAIFactionKey); 
     let currentAIFoodCap = calculateFoodCapacity(currentAIFactionKey);
 
     let currentAIBase = isP1AI ? playerBaseData : opponentBaseData; 
@@ -1021,7 +1039,7 @@ function updateSingleAI(currentAIFactionKey) {
 
     if (aiOwnBases.length > 0 && !aiOwnBases[0].isTraining && aiWorkers.length < AI_TARGET_WORKERS && 
         aiCanAffordGeneric(currentAIFactionKey, 'worker', true, currentAIWood, currentAICoal, currentAIFood, currentAIFoodCap)) {
-        trainUnit('worker', aiOwnBases[0]);
+        trainUnit('worker', aiOwnBases[0]); 
         return; 
     } 
     
@@ -1256,7 +1274,7 @@ function gameLoop(timestamp) {
                 units.forEach(unit => {
                     if (unit.hp > 0 && unit.faction !== bldg.faction) {
                         const unitPos = { x: unit.worldX, y: unit.worldY };
-                        const dSq = distanceSq(towerPos, unitPos); // distanceSq from main.js
+                        const dSq = distanceSq(towerPos, unitPos); 
                         if (dSq < minDistSq) {
                             minDistSq = dSq;
                             closestEnemy = unit;
