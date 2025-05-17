@@ -3,12 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Emoji RTS - Modular (5 Files)</title>
+    <title>Emoji RTS - Modular (Clean Split)</title>
     <link rel="stylesheet" href="style.css">
 </head>
-<body class="rtsmenu-dark-theme"> <!-- Defaulting to dark theme for the game -->
+<body class="rtsmenu-dark-theme">
 
-    <!-- Start Modal: Player Chooses Faction or Mode -->
     <div id="start-modal-overlay">
         <div id="start-modal">
             <h2>Choose your Faction:</h2>
@@ -20,25 +19,19 @@
         </div>
     </div>
 
-    <!-- Main Menu Modal: Accessed during gameplay (e.g., via Escape) -->
     <div id="main-menu-overlay">
         <div id="main-menu-modal">
             <h2>Main Menu</h2>
             <button id="resume-game-btn">Resume Game</button>
             <button id="editor-mode-btn">Map Editor (Conceptual)</button>
             <button id="restart-game-btn">Restart Game (New Faction)</button>
-            <!-- Add other options like Settings, Quit to Desktop (conceptual) -->
         </div>
     </div>
 
-    <!-- Main Game Viewport -->
     <div id="viewport">
-        <div id="game-world">
-            <!-- Game objects (units, buildings, resources) will be appended here by JavaScript -->
-        </div>
+        <div id="game-world"></div>
     </div>
 
-    <!-- UI Panel: Displays resources, selection info, and command card -->
     <div id="ui-panel">
         <div id="ui-left-elements">
             <div id="resource-display">
@@ -48,12 +41,9 @@
             </div>
             <div id="selection-info">Selected: None</div>
         </div>
-        <div id="command-card-container">
-            <!-- JSRTSMenu for the command card will be dynamically rendered here -->
-        </div>
+        <div id="command-card-container"></div>
     </div>
     
-    <!-- Debug Panel: Toggled with backtick (`) -->
     <div id="debug-panel">
         <div>[DEBUG `]</div><hr>
         <div>Game State: <span id="debug-current-game-state">N/A</span></div>
@@ -67,28 +57,26 @@
         <hr>
         <div>Sel ID: <span id="debug-selected-id">N/A</span></div>
         <div>Sel Type: <span id="debug-selected-type">N/A</span></div>
-        <div>Sel Faction: <span id="debug-selected-faction-sel">N/A</span></div> <!-- Renamed to avoid conflict -->
+        <div>Sel Faction: <span id="debug-selected-faction-sel">N/A</span></div>
         <div>Sel HP: <span id="debug-selected-hp">N/A</span></div>
         <div>Sel State: <span id="debug-selected-state">N/A</span></div>
         <div>Sel Target: <span id="debug-selected-target">N/A</span></div>
         <hr>
         <div>P1 Buildings: <span id="debug-p1-building-count">0</span> P2 Buildings: <span id="debug-p2-building-count">0</span></div>
         <div>Constructions: <span id="debug-construction-count">0</span></div>
+        <div>Resource Nodes: <span id="debug-resource-nodes-count">N/A</span></div> <!-- Added for resource node count -->
    </div>
 
-    <!-- Game Over Message -->
     <div id="game-over-message"></div>
 
-    <!-- JSRTSMenu requires these for its popups. They are styled to be hidden until used. -->
     <div id="context-menu-actual-container" class="js-rts-menu-base-container" role="menu" aria-orientation="vertical"></div>
     <div id="command-card-menu-actual-container" class="js-rts-menu-base-container" role="menu" aria-orientation="vertical"></div>
     <div id="js-rts-menu-global-tooltip" role="tooltip" aria-hidden="true"></div>
 
-    <!-- Scripts: Load in order of dependency -->
-    <script src="js/0_rts-menu.js"></script>
-    <script src="js/1_game-data.js"></script>
-    <script src="js/2_game-state.js"></script>
-    <script src="js/3_game-logic.js"></script>
-    <script src="js/4_main-ui-input.js"></script>
+    <script src="js/menu.js"></script>
+    <script src="js/game-data.js"></script>
+    <script src="js/game-state.js"></script>
+    <script src="js/game-logic.js"></script>
+    <script src="js/main.js"></script> 
 </body>
 </html>
