@@ -1,0 +1,427 @@
+/* style.css */
+
+/* --- Game & JSRTSMenu Styles --- */
+:root {
+    --bg-color: #282c34; 
+    --world-bg: #8FBC8F;
+    --text-color: #abb2bf; 
+    --text-highlight: #e5c07b; 
+    --text-selection: #98c379;
+    --border-color: #5c6370; 
+    --button-bg: #61afef; 
+    --button-text: #282c34;
+    --button-disabled-bg: #5c6370; 
+    --outline-selected: #e5c07b; 
+    --outline-selected-building: yellow;
+    --outline-moving: #c678dd; 
+    --outline-action: #98c379;
+    --outline-returning: #e5c07b;
+    --outline-attack-move: #ff9900;
+    --outline-attacking: #e06c75;
+    --outline-error: #f0f000;
+    --preview-invalid: red; 
+    --preview-valid: lime;
+    --progress-train: #98c379;
+    --progress-construct: lime;
+    --progress-hp-healthy: limegreen;
+    --progress-hp-damaged: gold;
+    --progress-hp-critical: red;
+    --progress-bg: rgba(0, 0, 0, 0.6);
+    --progress-border: rgba(200, 200, 200, 0.5);
+    --modal-bg: rgba(0, 0, 0, 0.7); 
+    --modal-box-bg: #3a3f4b;
+
+    /* JSRTSMenu Theme Variables (merged with game theme) */
+    --rtsmenu-font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    --rtsmenu-text-color-primary: #e0e0e0;
+    --rtsmenu-text-color-secondary: #b0b0b0;
+    --rtsmenu-text-color-subtle: #909090;
+    --rtsmenu-text-color-disabled: #777777;
+    --rtsmenu-text-color-insufficient: #e74c3c;
+    
+    --rtsmenu-bg: #2c3e50; 
+    --rtsmenu-border-color: #4a5c6e;
+    --rtsmenu-border-radius: 6px;
+    --rtsmenu-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    --rtsmenu-padding-y: 6px;
+    --rtsmenu-padding-x: 0;
+
+    --rtsmenu-item-padding-y: 8px;
+    --rtsmenu-item-padding-x: 12px;
+    --rtsmenu-item-button-padding-y: 8px;
+    --rtsmenu-item-button-padding-x: 0;
+    --rtsmenu-item-hover-bg: #34495e;
+    --rtsmenu-item-hover-text-color: #ffffff;
+    --rtsmenu-item-focus-outline-color: #5dade2; 
+    --rtsmenu-item-focus-bg: #283747;
+
+    --rtsmenu-icon-size: 16px;
+    --rtsmenu-icon-margin-right: 10px;
+    --rtsmenu-check-radio-indicator-margin-right: 8px;
+
+    --rtsmenu-hotkey-font-size: 0.8em;
+    --rtsmenu-hotkey-padding-left: 15px;
+
+    --rtsmenu-cost-font-size: 0.85em;
+    --rtsmenu-cost-margin-left: 8px;
+    
+    --rtsmenu-separator-color: #4a5c6e;
+    --rtsmenu-separator-margin-y: 6px;
+
+    --rtsmenu-tooltip-bg: #ecf0f1; 
+    --rtsmenu-tooltip-text-color: #2c3e50;
+    --rtsmenu-tooltip-padding-y: 8px;
+    --rtsmenu-tooltip-padding-x: 12px;
+    --rtsmenu-tooltip-radius: 4px;
+    --rtsmenu-tooltip-shadow: 0 2px 5px rgba(255,255,255,0.1);
+
+    --rtsmenu-cooldown-overlay-bg: rgba(200, 200, 200, 0.3);
+    --rtsmenu-cooldown-text-color: #111;
+}
+
+body, html { 
+    margin: 0; 
+    padding: 0; 
+    width: 100%; 
+    height: 100%; 
+    overflow: hidden; 
+    font-family: var(--rtsmenu-font-family); 
+    background-color: var(--bg-color); 
+    color: var(--text-color); 
+    user-select: none; 
+}
+
+#viewport { 
+    width: 100%; 
+    height: 100%; 
+    overflow: hidden; 
+    position: relative; 
+    cursor: default; 
+    visibility: hidden; /* Initially hidden, shown by JS */
+}
+#viewport.panning { cursor: grabbing; }
+
+#game-world { 
+    position: absolute; 
+    left: 0; 
+    top: 0; 
+    background-color: var(--world-bg); 
+    transform-origin: top left; 
+    will-change: transform; 
+}
+
+#ui-panel { 
+    position: absolute; 
+    bottom: 10px; 
+    left: 10px; 
+    right: 10px; 
+    display: flex; 
+    justify-content: space-between; 
+    align-items: flex-end; 
+    pointer-events: none; 
+    z-index: 900; 
+    visibility: hidden; /* Initially hidden */
+}
+#ui-left-elements { 
+    background-color: rgba(40, 44, 52, 0.85); 
+    padding: 10px; 
+    border-radius: 5px; 
+    z-index: 1000; 
+    pointer-events: auto; 
+    font-size: 14px; 
+    display: flex; 
+    flex-direction: column; 
+    gap: 5px; 
+    max-width: 260px; 
+}
+#resource-display, #selection-info { 
+    margin-bottom: 8px; 
+    pointer-events: none; 
+    line-height: 1.4; 
+}
+#resource-display span { 
+    font-weight: bold; 
+    color: var(--text-highlight); 
+    margin-left: 3px; 
+    margin-right: 10px; 
+}
+#selection-info { 
+    color: var(--text-selection); 
+    min-height: 1.4em; /* Ensure consistent height */
+    font-weight: 500; 
+}
+
+#debug-panel { 
+    position: fixed; 
+    bottom: 10px; 
+    left: 10px; 
+    background-color: rgba(0, 0, 0, 0.75); 
+    color: #ccc; 
+    padding: 8px; 
+    border-radius: 4px; 
+    font-family: monospace; 
+    font-size: 11px; 
+    z-index: 2000; 
+    pointer-events: none; 
+    display: none; 
+    border: 1px solid var(--border-color); 
+    max-width: 300px; 
+}
+#debug-panel.visible { display: block; }
+#debug-panel div { margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#debug-panel span { color: white; font-weight: bold; }
+
+.game-object { 
+    position: absolute; 
+    box-sizing: border-box; 
+    display: flex; 
+    justify-content: center; 
+    align-items: center; 
+    user-select: none; 
+    pointer-events: auto; /* Individual objects are clickable */
+}
+.resource { z-index: 5; } 
+.construction-site { z-index: 10; } 
+.building { z-index: 15; } 
+.unit { z-index: 20; }
+.selected-building { 
+    outline: 3px dashed var(--outline-selected-building) !important; 
+    outline-offset: 3px; 
+    z-index: 25 !important; 
+}
+.unit.selected { 
+    z-index: 30 !important; 
+    outline-color: var(--outline-selected); 
+    box-shadow: 0 0 8px var(--outline-selected); 
+}
+
+.base { width: 180px; height: 180px; font-size: 150px; color: white; } 
+.farm { width: 45px; height: 45px; font-size: 40px; pointer-events: none; } /* Farm tiles are not individually clickable */
+.barracks { width: 140px; height: 140px; font-size: 120px; } 
+.archer_trainer { width: 130px; height: 130px; font-size: 110px; }
+.guard_tower { width: 80px; height: 100px; font-size: 80px; }
+
+.unit { 
+    width: 36px; height: 36px; font-size: 28px; 
+    color: rgba(0,0,0,0.9); line-height: 1; text-align: center; 
+    cursor: pointer; 
+    outline: 2px solid transparent; outline-offset: 2px; 
+    border-radius: 50%; 
+    transition: outline-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out; 
+}
+.unit.moving, .unit.moving_to_resource, .unit.moving_to_build, .unit.retreating { outline-color: var(--outline-moving); }
+.unit.moving_to_attack { outline-color: var(--outline-attack-move); }
+.unit.attacking { outline-color: var(--outline-attacking); animation: attack-pulse 0.5s infinite ease-in-out alternate; }
+.unit.harvesting, .unit.building { outline-color: var(--outline-action); animation: pulse 0.7s infinite ease-in-out alternate; }
+.unit.returning { outline-color: var(--outline-returning); } 
+.unit.error-state { outline-color: var(--outline-error) !important; }
+
+@keyframes pulse { from { transform: scale(1); } to { transform: scale(1.03); } }
+@keyframes attack-pulse { 
+    from { box-shadow: 0 0 6px var(--outline-attacking); } 
+    to { box-shadow: 0 0 12px var(--outline-attacking), 0 0 4px red; transform: scale(1.02); } 
+}
+
+.tree { font-size: 100px; width: 100px; height: 100px; } 
+.mine { font-size: 140px; width: 140px; height: 140px; color: var(--border-color); align-items: center; transition: opacity 0.3s ease-in-out; }
+.mine.depleting { opacity: 0.3; pointer-events: none; }
+
+.building-preview { 
+    opacity: 0.6; pointer-events: none; position: absolute; z-index: 500; 
+    outline: 3px dashed var(--preview-invalid); outline-offset: 2px; 
+    background: rgba(128, 128, 128, 0.1); 
+}
+.building-preview.valid { outline-color: var(--preview-valid); }
+
+.farm-preview-tile { 
+    position: absolute; width: 45px; height: 45px; font-size: 40px; 
+    opacity: 0.5; pointer-events: none; display: flex; 
+    justify-content: center; align-items: center; box-sizing: border-box; z-index: 500; 
+}
+.farm-preview-tile.preview-valid { outline: 1px solid lime; } 
+.farm-preview-tile.preview-invalid { outline: 1px solid red; }
+
+.carrying-indicator { 
+    position: absolute; top: -8px; right: -5px; font-size: 16px; 
+    background: rgba(0,0,0,0.6); padding: 1px 3px; border-radius: 3px; 
+    color: white; line-height: 1; z-index: 1; display: none; 
+}
+.unit.returning .carrying-indicator:not(:empty) { display: block; }
+
+.progress-bar-container { 
+    position: absolute; bottom: -10px; left: 5%; width: 90%; height: 8px; 
+    background-color: var(--progress-bg); border: 1px solid var(--progress-border); 
+    border-radius: 4px; overflow: hidden; z-index: 1; display: none; 
+    box-shadow: 0 1px 2px rgba(0,0,0,0.4); 
+}
+.hp-bar-container { 
+    position: absolute; top: -12px; left: 5%; width: 90%; height: 6px; 
+    background-color: var(--progress-bg); border: 1px solid var(--progress-border); 
+    border-radius: 3px; overflow: hidden; z-index: 1; display: none; 
+}
+.progress-bar-inner { width: 0%; height: 100%; border-radius: 3px; transition: width 0.1s linear; }
+.hp-bar-inner { 
+    width: 100%; height: 100%; border-radius: 2px; 
+    background-color: var(--progress-hp-healthy); 
+    transition: width 0.2s ease-out, background-color 0.2s ease-out; 
+}
+.building .progress-bar-inner { background-color: var(--progress-train); } 
+.construction-site .progress-bar-inner { background-color: var(--progress-construct); }
+.building.training .progress-bar-container, .construction-site.building .progress-bar-container { display: block !important; }
+
+#start-modal-overlay, #main-menu-overlay { 
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
+    background-color: var(--modal-bg); z-index: 10000; 
+    display: flex; justify-content: center; align-items: center; 
+}
+#main-menu-overlay { display: none; /* Hidden by default */ }
+
+#start-modal, #main-menu-modal { 
+    background-color: var(--modal-box-bg); padding: 30px 40px; 
+    border-radius: 8px; text-align: center; 
+    border: 1px solid var(--border-color); box-shadow: 0 5px 15px rgba(0,0,0,0.5); 
+}
+#start-modal h2, #main-menu-modal h2 { margin-top: 0; color: var(--text-highlight); }
+#start-modal button, #main-menu-modal button { 
+    background-color: var(--button-bg); color: var(--button-text); 
+    border: none; padding: 12px 20px; margin: 10px 5px; 
+    border-radius: 5px; cursor: pointer; font-size: 18px; 
+    font-weight: bold; min-width: 110px; 
+}
+#start-modal button:hover, #main-menu-modal button:hover { background-color: #7abfff; }
+
+#game-over-message { 
+    position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); 
+    padding: 40px; background-color: rgba(0, 0, 0, 0.8); color: white; 
+    font-size: 3em; border: 2px solid var(--border-color); border-radius: 10px; 
+    text-align: center; z-index: 9000; display: none; 
+}
+
+/* JSRTSMenu base element styles */
+.js-rts-menu-base-container { 
+    display: none; position: absolute; 
+    background-color: var(--rtsmenu-bg); 
+    border: 1px solid var(--rtsmenu-border-color); 
+    box-shadow: var(--rtsmenu-shadow); 
+    z-index: 1100; 
+    min-width: 200px; 
+    padding: var(--rtsmenu-padding-y); 
+    opacity: 0; 
+    border-radius: var(--rtsmenu-border-radius); 
+    outline: none; 
+    font-family: var(--rtsmenu-font-family); 
+}
+.js-rts-menu-button-wrapper { 
+    position: relative; display: flex; align-items: center; 
+    padding: 0px var(--rtsmenu-item-padding-x); 
+    outline: none; 
+}
+.js-rts-menu-base-container button:focus { 
+    outline: 2px solid var(--rtsmenu-item-focus-outline-color); 
+    outline-offset: -2px; 
+    background-color: var(--rtsmenu-item-focus-bg); 
+}
+.js-rts-menu-button-wrapper:hover { background-color: var(--rtsmenu-item-hover-bg); }
+.js-rts-menu-button-wrapper:hover > button, .js-rts-menu-button-wrapper > button:focus { 
+    background-color: transparent; 
+    color: var(--rtsmenu-item-hover-text-color); 
+}
+.js-rts-menu-button-wrapper:has(button:disabled) { 
+    background-color: transparent; 
+    cursor: not-allowed; 
+}
+.js-rts-menu-button-wrapper:has(button:disabled):hover { background-color: transparent; }
+
+.js-rts-menu-base-container button { 
+    role: menuitem; flex-grow: 1; 
+    padding: var(--rtsmenu-item-button-padding-y) var(--rtsmenu-item-button-padding-x); 
+    text-align: left; border: none; background-color: transparent; 
+    cursor: pointer; font-size: 0.95em; display: flex; 
+    align-items: center; width: 100%; 
+    color: var(--rtsmenu-text-color-primary); 
+    border-radius: 4px; 
+}
+.js-rts-menu-button-icon { 
+    width: var(--rtsmenu-icon-size); height: var(--rtsmenu-icon-size); 
+    margin-right: var(--rtsmenu-icon-margin-right); 
+    flex-shrink: 0; pointer-events: none; 
+}
+.js-rts-menu-button-label { flex-grow: 1; pointer-events: none; }
+.js-rts-menu-button-cost { 
+    font-size: var(--rtsmenu-cost-font-size); 
+    color: var(--rtsmenu-text-color-secondary); 
+    margin-left: var(--rtsmenu-cost-margin-left); 
+    white-space: nowrap; pointer-events: none; 
+}
+.js-rts-menu-button-cost.cost-insufficient { color: var(--rtsmenu-text-color-insufficient); }
+.js-rts-menu-button-hotkey { 
+    font-size: var(--rtsmenu-hotkey-font-size); 
+    color: var(--rtsmenu-text-color-subtle); 
+    padding-left: var(--rtsmenu-hotkey-padding-left); 
+    flex-shrink: 0; font-weight: normal; 
+}
+.js-rts-menu-base-container button:disabled { 
+    color: var(--rtsmenu-text-color-disabled); 
+    cursor: not-allowed; background-color: transparent; 
+}
+.js-rts-menu-base-container button.js-rts-menu-back-button .js-rts-menu-button-label { font-style: italic; }
+
+#js-rts-menu-global-tooltip { 
+    visibility: hidden; opacity: 0; 
+    background-color: var(--rtsmenu-tooltip-bg); 
+    color: var(--rtsmenu-tooltip-text-color); 
+    text-align: left; border-radius: var(--rtsmenu-tooltip-radius); 
+    padding: var(--rtsmenu-tooltip-padding-y) var(--rtsmenu-tooltip-padding-x); 
+    position: fixed; z-index: 1200; font-size: 0.85em; line-height: 1.4; 
+    transition: opacity 0.1s ease-out; white-space: normal; pointer-events: none; 
+    max-width: 280px; box-shadow: var(--rtsmenu-tooltip-shadow); 
+    outline: none !important; left: -9999px; top: -9999px; 
+}
+.js-rts-menu-separator { 
+    height: 1px; background-color: var(--rtsmenu-separator-color); 
+    margin: var(--rtsmenu-separator-margin-y) 0; 
+}
+.js-rts-menu-button-cooldown-timer { 
+    position: absolute; top: 0; left: 0; width: 100%; height: 100%; 
+    background-color: var(--rtsmenu-cooldown-overlay-bg); 
+    display: none; align-items: center; justify-content: center; 
+    color: var(--rtsmenu-cooldown-text-color); 
+    font-weight: bold; font-size: 0.9em; pointer-events: none; border-radius: 4px; 
+}
+.js-rts-menu-item-indicator { 
+    width: var(--rtsmenu-icon-size); height: var(--rtsmenu-icon-size); 
+    margin-right: var(--rtsmenu-check-radio-indicator-margin-right); 
+    text-align: center; display: inline-block; 
+    line-height: var(--rtsmenu-icon-size); flex-shrink: 0; 
+}
+button[role="menuitemcheckbox"][aria-checked="true"] > .js-rts-menu-item-indicator::before { content: '✓'; }
+button[role="menuitemradio"][aria-checked="true"] > .js-rts-menu-item-indicator::before { content: '●'; } 
+button[role="menuitemradio"][aria-checked="false"] > .js-rts-menu-item-indicator::before { content: '○'; }
+        
+#command-card-container { 
+    width: 280px; /* Fixed width for the command card panel */
+    height: auto; /* Or a fixed height like 300px */
+    max-height: 300px; /* Example max height */
+    overflow-y: auto; /* Scroll if content exceeds max height */
+    overflow-x: hidden;
+    pointer-events: auto; /* Make the panel interactive */
+    /* Background and border will come from JSRTSMenu's container if it's embedded */
+    background-color: var(--rtsmenu-bg); /* Give the panel itself a background */
+    border: 1px solid var(--rtsmenu-border-color);
+    border-radius: var(--rtsmenu-border-radius);
+    box-shadow: var(--rtsmenu-shadow);
+}
+
+/* This makes the JSRTSMenu instance for the command card fill its parent container */
+#command-card-menu-actual-container.js-rts-menu-base-container {
+    position: static !important; /* Override absolute positioning for embedding */
+    width: 100% !important;
+    min-width: unset !important;
+    box-shadow: none !important; /* Panel might have its own shadow */
+    border: none !important; /* Panel might have its own border */
+    /* height: 100%; Let content define height, parent panel scrolls */
+    max-height: none !important; /* Don't restrict height here, parent panel does */
+    overflow-y: visible !important; /* Scrolling handled by parent panel */
+    padding: 0 !important; /* Remove JSRTSMenu's own padding if embedded */
+    background-color: transparent !important; /* Inherit from panel */
+}
