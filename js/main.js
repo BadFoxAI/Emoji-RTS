@@ -5,10 +5,6 @@
 
 "use strict";
 
-// Note: This file assumes that variables from 'game-data.js' and 'game-state.js'
-// and functions from 'game-logic.js' and 'menu.js' are globally accessible
-// due to script load order.
-
 // --- DOM Element References (will be assigned in DOMContentLoaded) ---
 let viewportElement, gameWorld, modalOverlay, mainMenuOverlay, uiPanelElement, uiLeftElements,
     humanBtn, zombieBtn, versusBtn, resumeGameBtn, editorModeBtn, restartGameBtn, 
@@ -99,7 +95,6 @@ document.addEventListener('DOMContentLoaded', () => {
         if (commandCardMenu) commandCardMenu.hide();
         if (contextMenu) contextMenu.hide();
         if (gameWorld) gameWorld.innerHTML = ''; 
-        // Game state (units, resources etc.) will be reset by initializeAndStartGame
     };
 
     // Viewport and global event listeners
@@ -140,7 +135,6 @@ function initializeMenus() {
  * @param {string|null} [p2KeyIfAiVsAi=null] - Faction key for player 2 if AI vs AI.
  */
 function startGameWithOptions(mode, p1Key, p2KeyIfAiVsAi = null) {
-    // Set global game state variables (from game-state.js)
     gameMode = mode; 
     p1FactionKey = p1Key; 
     playerFactionKey = p1Key; 
@@ -148,7 +142,7 @@ function startGameWithOptions(mode, p1Key, p2KeyIfAiVsAi = null) {
     if (gameMode === 'ai_vs_ai') {
         p2FactionKey = p2KeyIfAiVsAi || (p1Key === 'human' ? 'zombie' : 'human'); 
         opponentFactionKey = p2FactionKey; 
-    } else { // human_vs_ai
+    } else { 
         p2FactionKey = (p1Key === 'human') ? 'zombie' : 'human'; 
         opponentFactionKey = p2FactionKey;
     }
@@ -157,13 +151,12 @@ function startGameWithOptions(mode, p1Key, p2KeyIfAiVsAi = null) {
     if(mainMenuOverlay) mainMenuOverlay.style.display = 'none';
     if(uiPanelElement) uiPanelElement.style.visibility = (gameMode === 'human_vs_ai') ? 'visible' : 'hidden';
     if(viewportElement) viewportElement.style.visibility = 'visible';
-    setCurrentGameState('in_game'); // setCurrentGameState from game-state.js
-    initializeAndStartGame(); // This function is now in this file
+    setCurrentGameState('in_game'); 
+    initializeAndStartGame(); 
 }
 
 /**
  * Initializes all game systems, data, map, and starts the game loop.
- * This is called after faction/mode selection.
  */
 function initializeAndStartGame() { 
     if (!gameWorld) gameWorld = document.getElementById('game-world');
@@ -174,26 +167,21 @@ function initializeAndStartGame() {
         return; 
     }
 
-    resetCoreGameState(); // from game-state.js
+    resetCoreGameState(); 
 
-    // FACTION_DATA is globally available from game-data.js
-    // Constants it uses (STARTING_FOOD_CAP, FARM_TOTAL_SIZE) are also global from game-data.js
+    currentWorldWidth = WORLD_WIDTH; 
+    currentWorldHeight = WORLD_HEIGHT; 
 
-    currentWorldWidth = WORLD_WIDTH; // from game-data.js
-    currentWorldHeight = WORLD_HEIGHT; // from game-data.js
-
-    // Initialize resources using constants from game-data.js
     p1Wood = INITIAL_WOOD; p1Coal = INITIAL_COAL;
     p1CurrentFood = 0; p1FoodCapacity = STARTING_FOOD_CAP;
     p2Wood = INITIAL_WOOD; p2Coal = INITIAL_COAL;
     p2CurrentFood = 0; p2FoodCapacity = STARTING_FOOD_CAP;
     
-    // Initialize AI update counters for the current factions (from game-state.js)
     factionAiUpdateCounters[p1FactionKey] = 0; 
     factionAiUpdateCounters[p2FactionKey] = 0;
 
     try {
-        initializeMapAndBases(); // This is in game-logic.js
+        initializeMapAndBases(); 
     } catch (error) {
         console.error("MAIN.JS: FATAL ERROR during map/base initialization:", error);
         setCurrentGameState('start_modal'); 
@@ -206,9 +194,8 @@ function initializeAndStartGame() {
         }
         return;
     }
-    setGameInitialized(true); // from game-state.js
+    setGameInitialized(true); 
     
-    // Initial UI updates
     updateResourceDisplay();
     updateSelectionInfo();
     updateCommandCard(); 
@@ -220,13 +207,13 @@ function initializeAndStartGame() {
     }
     applyTransform();
 
-    requestAnimationFrame(gameLoop); // gameLoop is in game-logic.js
+    requestAnimationFrame(gameLoop); 
 }
 
 
 /** Shows the main menu overlay and pauses game interactions. */
 function showMainMenu() {
-    setCurrentGameState('main_menu'); // from game-state.js
+    setCurrentGameState('main_menu'); 
     if(mainMenuOverlay) mainMenuOverlay.style.display = 'flex';
     if (commandCardMenu) commandCardMenu.hide();
     if (contextMenu) contextMenu.hide();
@@ -235,7 +222,7 @@ function showMainMenu() {
 /** Hides the main menu overlay and resumes game or returns to start. */
 function hideMainMenu() {
     if(gameInitialized && !gameOver) { 
-        setCurrentGameState('in_game'); // from game-state.js
+        setCurrentGameState('in_game'); 
         if(mainMenuOverlay) mainMenuOverlay.style.display = 'none';
     } else { 
         if(mainMenuOverlay) mainMenuOverlay.style.display = 'none';
@@ -567,7 +554,7 @@ function gameHandleContextMenu(event) {
                  if (selectedUnit.attackDamage > 0) { builderFn = (ctxData) => buildAttackContextMenu(ctxData, targetBuildingData); }
                  else { builderFn = buildMoveContextMenu; }
             } else if (targetResourceData && selectedUnit.unitType === 'worker') { 
-                if (!(targetResourceData.type === 'mine' && resourceData.health <= 0)) { // resourceData was undefined here, should be targetResourceData
+                if (!(targetResourceData.type === 'mine' && targetResourceData.health <= 0)) {
                     builderFn = (ctxData) => buildHarvestContextMenu(ctxData, targetResourceData);
                 } else { builderFn = buildMoveContextMenu; }
             } else if (targetConstructionData && targetConstructionData.faction === playerFactionKey && selectedUnit.canBuild) { 
@@ -576,10 +563,14 @@ function gameHandleContextMenu(event) {
                 } else { builderFn = buildMoveContextMenu; }
             } else if (targetBuildingData && targetBuildingData.buildingType === 'base' && targetBuildingData.faction === playerFactionKey && selectedUnit.resourceType) { 
                 builderFn = (ctxData) => buildReturnResourceContextMenu(ctxData);
-            } else { builderFn = buildMoveContextMenu; }
-        } else { builderFn = buildMoveContextMenu; }
-    } else if (!selectedUnit && clickedOnGameObject) { 
-        event.preventDefault();
+            } else { // Default to move if no specific interaction defined for this target type
+                builderFn = buildMoveContextMenu; 
+            }
+        } else { // Clicked on empty ground
+            builderFn = buildMoveContextMenu; 
+        }
+    } else if (!selectedUnit && clickedOnGameObject) { // No unit selected, but right-clicked on a game object
+        event.preventDefault(); // Prevent browser context menu
         const targetUnitData = units.find(u => u.element === clickedOnGameObject && u.hp > 0 && u.faction === playerFactionKey);
         const targetBuildingData = buildings.find(b => b.element === clickedOnGameObject && b.hp > 0 && b.faction === playerFactionKey && b.buildingType !== 'farm' && !b.isConstructing);
         const targetConstructionSite = constructions.find(c => c.element === clickedOnGameObject && c.faction === playerFactionKey);
@@ -587,8 +578,11 @@ function gameHandleContextMenu(event) {
         if (targetUnitData) { handleUnitClick(targetUnitData); } 
         else if (targetBuildingData) { handleBuildingClick(targetBuildingData); }
         else if (targetConstructionSite) { handleBuildingClick(targetConstructionSite); } 
+        return; // Don't show a context menu if we just selected something
+    } else { 
+        // No unit selected, clicked on empty ground. Do nothing, allow browser context menu or no action.
         return; 
-    } else { return; }
+    }
 
     if (builderFn) {
         contextMenu.showRoot({ x: event.clientX, y: event.clientY }, () => builderFn(contextData), event.target);
@@ -633,7 +627,7 @@ function handleGlobalKeyDown(e) {
                 }
             }
         } else if (selectedUnit && selectedUnit.unitType === 'worker' && selectedUnit.faction === playerFactionKey) {
-            if (key === 'b') { 
+            if (key === 'b') { // Worker's "Build" master hotkey
                 if (isDebugVisible) console.log("MAIN.JS: Global hotkey - Trigger Worker Build Menu (B)");
                 if (commandCardMenu && commandCardMenu.isVisible) {
                     const buildButtonData = commandCardMenu.buttonsData.find(bd => bd.label.toLowerCase() === "build" && bd.options.opensSubmenu);
@@ -664,9 +658,9 @@ function handleGlobalKeyDown(e) {
 
         if (key === 'escape') {
             if (contextMenu && contextMenu.isVisible) { contextMenu.hide(); e.preventDefault(); return; }
-            if (commandCardMenu && commandCardMenu.isVisible && commandCardMenu.menuStateStack.length > 0) { /* JSRTSMenu's Esc handles submenus */ }
-            else if (commandCardMenu && commandCardMenu.isVisible && commandCardMenu.menuStateStack.length === 0){ commandCardMenu.hide(); e.preventDefault(); return;} 
-            else if (placingBuildingType || placingFarm) { if(cancelPlacement) cancelPlacement(); e.preventDefault(); return;}
+            // JSRTSMenu's internal Escape listener should handle its own submenus.
+            // If commandCardMenu is visible at its root, it will also be hidden by its own listener if no submenus.
+            if (placingBuildingType || placingFarm) { if(cancelPlacement) cancelPlacement(); e.preventDefault(); return;}
             else if (selectedUnit || selectedBuilding) { if(deselectAll) deselectAll(); e.preventDefault(); return;}
             else { showMainMenu(); e.preventDefault(); return;} 
         }
@@ -790,8 +784,8 @@ function updatePlacementPreview(worldX, worldY) {
     if (gameMode === 'ai_vs_ai' || (!placingBuildingType && !placingFarm)) return; 
     const checkOverlap = (boxToCheck) => { 
         if (resources.some(r => r.element?.isConnected && checkAABBOverlap(boxToCheck, r.box || getElementWorldBoundingBox(r.element), COLLISION_PADDING))) return true; 
-        // Check against completed buildings AND active construction sites
-        if (buildings.some(b => b.element && (!b.isConstructing || (b.isConstructing && b.element.classList.contains('construction-site'))) && checkAABBOverlap(boxToCheck, b.box || getElementWorldBoundingBox(b.element), COLLISION_PADDING))) return true; 
+        if (buildings.some(b => b.element && checkAABBOverlap(boxToCheck, b.box || getElementWorldBoundingBox(b.element), COLLISION_PADDING))) return true; 
+        if (constructions.some(c => c.element && checkAABBOverlap(boxToCheck, c.box || getElementWorldBoundingBox(c.element), COLLISION_PADDING))) return true; 
         return false; 
     }; 
     const checkBounds = (boxToCheck) => { return boxToCheck.xMin >= 0 && boxToCheck.xMax <= currentWorldWidth && boxToCheck.yMin >= 0 && boxToCheck.yMax <= currentWorldHeight; }; 
@@ -1049,7 +1043,7 @@ function showTemporaryMessage(message, duration = 2000) {
     }, duration);
 }
 
-// --- Utility: AABB Collision Check (used by placement logic) ---
+// --- Utility: AABB Collision Check ---
 function checkAABBOverlap(box1, box2, padding = 0) { 
     if (!box1 || !box2 || box1.width === 0 || box2.width === 0) return false; 
     return ( 
@@ -1060,13 +1054,13 @@ function checkAABBOverlap(box1, box2, padding = 0) {
     ); 
 }
 
-// Utility function to calculate current food used by a faction (needed by UI for display and JSRTSMenu builders)
+// Utility function to calculate current food used by a faction
 function calculateCurrentFood(factionKeyToCalc) { 
     if (!FACTION_DATA[factionKeyToCalc] || !FACTION_DATA[factionKeyToCalc].units) return 0;
     return units.reduce((sum, u) => sum + (u.faction === factionKeyToCalc ? (FACTION_DATA[factionKeyToCalc].units[u.unitType]?.foodCost || 0) : 0), 0); 
 }
 
-// Utility function to calculate total food capacity for a faction (needed by UI for display and JSRTSMenu builders)
+// Utility function to calculate total food capacity for a faction
 function calculateFoodCapacity(factionKeyToCalc) { 
     let capacity = 0; 
     if (!FACTION_DATA[factionKeyToCalc] || !FACTION_DATA[factionKeyToCalc].buildings) return STARTING_FOOD_CAP;
@@ -1079,4 +1073,20 @@ function calculateFoodCapacity(factionKeyToCalc) {
         } 
     }); 
     return Math.max(STARTING_FOOD_CAP, capacity); 
+}
+
+// Helper to calculate distance squared (if not available from game-logic.js for some reason, though it should be)
+// This is a fallback / duplication for safety if game-logic.js isn't loaded or distanceSq isn't global.
+// Ideally, this should only be in game-logic.js.
+if (typeof distanceSq === 'undefined') {
+    console.warn("MAIN.JS: distanceSq not found globally, defining a local version.");
+    function distanceSq(pos1, pos2) {
+        if (!pos1 || !pos2 || typeof pos1.x !== 'number' || typeof pos1.y !== 'number' || typeof pos2.x !== 'number' || typeof pos2.y !== 'number') {
+            console.error("MAIN.JS (local distanceSq): Invalid input", pos1, pos2);
+            return Infinity;
+        }
+        const dx = pos1.x - pos2.x;
+        const dy = pos1.y - pos2.y;
+        return dx * dx + dy * dy;
+    }
 }
