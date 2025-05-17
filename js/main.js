@@ -99,7 +99,6 @@ document.addEventListener('DOMContentLoaded', () => {
         if (commandCardMenu) commandCardMenu.hide();
         if (contextMenu) contextMenu.hide();
         if (gameWorld) gameWorld.innerHTML = ''; 
-        // Game state (units, resources etc.) will be reset by initializeAndStartGame
     };
 
     // Viewport and global event listeners
@@ -157,7 +156,7 @@ function startGameWithOptions(mode, p1Key, p2KeyIfAiVsAi = null) {
     if(mainMenuOverlay) mainMenuOverlay.style.display = 'none';
     if(uiPanelElement) uiPanelElement.style.visibility = (gameMode === 'human_vs_ai') ? 'visible' : 'hidden';
     if(viewportElement) viewportElement.style.visibility = 'visible';
-    setCurrentGameState('in_game'); // from game-state.js
+    setCurrentGameState('in_game'); // setCurrentGameState from game-state.js
     initializeAndStartGame(); // This function is now in this file
 }
 
@@ -198,7 +197,7 @@ function initializeAndStartGame() {
         console.error("MAIN.JS: FATAL ERROR during map/base initialization:", error);
         setCurrentGameState('start_modal'); 
         if(modalOverlay) modalOverlay.style.display = 'flex';
-        const modalContent = document.getElementById('start-modal'); // Display error in modal
+        const modalContent = document.getElementById('start-modal'); 
         if (modalContent) { 
             let errorP = modalContent.querySelector('.error-message'); 
             if (!errorP) { errorP = document.createElement('p'); errorP.className = 'error-message'; errorP.style.color = 'red'; modalContent.appendChild(errorP); } 
@@ -230,15 +229,14 @@ function showMainMenu() {
     if(mainMenuOverlay) mainMenuOverlay.style.display = 'flex';
     if (commandCardMenu) commandCardMenu.hide();
     if (contextMenu) contextMenu.hide();
-    // The gameLoop in game-logic.js will see currentGameState !== 'in_game' and pause updates.
 }
 
 /** Hides the main menu overlay and resumes game or returns to start. */
 function hideMainMenu() {
-    if(gameInitialized && !gameOver) { // Only resume if a game was active and not over
+    if(gameInitialized && !gameOver) { 
         setCurrentGameState('in_game'); // from game-state.js
         if(mainMenuOverlay) mainMenuOverlay.style.display = 'none';
-    } else { // No game to resume, or game over, go back to start modal
+    } else { 
         if(mainMenuOverlay) mainMenuOverlay.style.display = 'none';
         if(modalOverlay) modalOverlay.style.display = 'flex';
         setCurrentGameState('start_modal');
@@ -249,7 +247,6 @@ function hideMainMenu() {
 /** Updates the resource display panel for the current player. */
 function updateResourceDisplay() {
     try {
-        // calculateCurrentFood/Capacity are in game-logic.js
         p1CurrentFood = calculateCurrentFood(p1FactionKey); 
         p1FoodCapacity = calculateFoodCapacity(p1FactionKey); 
         if (gameMode === 'human_vs_ai') {
@@ -569,7 +566,7 @@ function gameHandleContextMenu(event) {
                  if (selectedUnit.attackDamage > 0) { builderFn = (ctxData) => buildAttackContextMenu(ctxData, targetBuildingData); }
                  else { builderFn = buildMoveContextMenu; }
             } else if (targetResourceData && selectedUnit.unitType === 'worker') { 
-                if (!(targetResourceData.type === 'mine' && targetResourceData.health <= 0)) {
+                if (!(targetResourceData.type === 'mine' && resourceData.health <= 0)) {
                     builderFn = (ctxData) => buildHarvestContextMenu(ctxData, targetResourceData);
                 } else { builderFn = buildMoveContextMenu; }
             } else if (targetConstructionData && targetConstructionData.faction === playerFactionKey && selectedUnit.canBuild) { 
@@ -621,7 +618,6 @@ function handleGlobalKeyDown(e) {
     if (key === '`') { if (toggleDebugPanel) toggleDebugPanel(); e.preventDefault(); return; }
 
     if (gameMode === 'human_vs_ai' && !e.target.matches('input, textarea')) {
-        // Global Game Hotkeys 
         if (selectedBuilding && selectedBuilding.faction === playerFactionKey && !selectedBuilding.isConstructing) {
             const bldgStaticData = FACTION_DATA[playerFactionKey].buildings[selectedBuilding.buildingType];
             if (bldgStaticData?.trains) {
@@ -635,17 +631,14 @@ function handleGlobalKeyDown(e) {
                 }
             }
         } else if (selectedUnit && selectedUnit.unitType === 'worker' && selectedUnit.faction === playerFactionKey) {
-            if (key === 'b') { // Worker's "Build" master hotkey
+            if (key === 'b') { 
                 if (isDebugVisible) console.log("MAIN.JS: Global hotkey - Trigger Worker Build Menu (B)");
-                // If command card is open, find and click the "Build" button in it
                 if (commandCardMenu && commandCardMenu.isVisible) {
                     const buildButtonData = commandCardMenu.buttonsData.find(bd => bd.label.toLowerCase() === "build" && bd.options.opensSubmenu);
-                    if (buildButtonData && buildButtonData.callback && !buildButtonData.disabled) {
-                        buildButtonData.callback(); // This should call openSubmenu on JSRTSMenu
-                    }
-                } else { // If command card not open, show it, then try to open build submenu
-                    updateCommandCard(); // Make sure card is there
-                    setTimeout(() => { // Allow card to render
+                    if (buildButtonData && buildButtonData.callback && !buildButtonData.disabled) { buildButtonData.callback(); }
+                } else { 
+                    updateCommandCard(); 
+                    setTimeout(() => { 
                          const buildButtonData = commandCardMenu?.buttonsData.find(bd => bd.label.toLowerCase() === "build" && bd.options.opensSubmenu);
                          if (buildButtonData && buildButtonData.callback && !buildButtonData.disabled) buildButtonData.callback();
                     }, 50); 
@@ -653,7 +646,6 @@ function handleGlobalKeyDown(e) {
                 e.preventDefault(); return;
             }
             
-            // Direct building hotkeys (F for Farm, X for Barracks etc. from FACTION_DATA)
             for (const buildingKey in FACTION_DATA[playerFactionKey].buildings) {
                 const buildingData = FACTION_DATA[playerFactionKey].buildings[buildingKey];
                 if (buildingData.hotkey && key === buildingData.hotkey) {
@@ -670,9 +662,9 @@ function handleGlobalKeyDown(e) {
 
         if (key === 'escape') {
             if (contextMenu && contextMenu.isVisible) { contextMenu.hide(); e.preventDefault(); return; }
-            // JSRTSMenu's internal Escape listener handles its own submenus.
-            // If commandCardMenu is visible at its root, its listener also handles Esc to hide.
-            if (placingBuildingType || placingFarm) { if(cancelPlacement) cancelPlacement(); e.preventDefault(); return;}
+            if (commandCardMenu && commandCardMenu.isVisible && commandCardMenu.menuStateStack.length > 0) { /* JSRTSMenu's Esc handles submenus */ }
+            else if (commandCardMenu && commandCardMenu.isVisible && commandCardMenu.menuStateStack.length === 0){ commandCardMenu.hide(); e.preventDefault(); return;} // Hide top-level command card
+            else if (placingBuildingType || placingFarm) { if(cancelPlacement) cancelPlacement(); e.preventDefault(); return;}
             else if (selectedUnit || selectedBuilding) { if(deselectAll) deselectAll(); e.preventDefault(); return;}
             else { showMainMenu(); e.preventDefault(); return;} 
         }
@@ -842,7 +834,7 @@ function finalizePlacement() {
         cancelPlacement(); 
         return; 
     } 
-    createConstructionSite(currentPlacementType, placementData.finalBox, playerFactionKey, selectedUnit); // from game-logic.js
+    createConstructionSite(currentPlacementType, placementData.finalBox, playerFactionKey, selectedUnit); 
     
     if (currentPlacementType === 'farm') { 
         farmPreviewTiles.forEach(p => { if(p && p.parentNode === gameWorld) gameWorld.removeChild(p); }); 
@@ -1000,15 +992,15 @@ function updateDebugPanel() {
 
 // --- Game Over Display ---
 function showGameOver(winnerFactionKey) { 
-    setGameInitialized(false); // from game-state.js
-    setGameOver(true);       // from game-state.js
+    setGameInitialized(false); 
+    setGameOver(true);       
     const winnerName = winnerFactionKey === "Draw" ? "It's a Draw!" : (FACTION_DATA[winnerFactionKey]?.name || winnerFactionKey) + " Wins!"; 
     if(gameOverMessageDiv) {
         gameOverMessageDiv.innerHTML = `<h2>Game Over!</h2><p>${winnerName}</p><button id="gameOverPlayAgain">Play Again?</button>`; 
         gameOverMessageDiv.style.display = 'block';
         const playAgainBtn = document.getElementById('gameOverPlayAgain');
         if (playAgainBtn) {
-            playAgainBtn.onclick = () => { // Go back to start modal
+            playAgainBtn.onclick = () => { 
                 gameOverMessageDiv.style.display = 'none';
                 if(modalOverlay) modalOverlay.style.display = 'flex'; 
                 setCurrentGameState('start_modal');
@@ -1024,25 +1016,26 @@ function showGameOver(winnerFactionKey) {
 
 /**
  * Helper to show a temporary message on screen (e.g., "Not enough wood!")
- * This is a very basic implementation.
- * @param {string} message - The message to display.
- * @param {number} [duration=2000] - How long to display the message in ms.
  */
 function showTemporaryMessage(message, duration = 2000) {
     let msgDiv = document.getElementById('temp-message-div');
     if (!msgDiv) {
         msgDiv = document.createElement('div');
         msgDiv.id = 'temp-message-div';
-        msgDiv.style.position = 'fixed';
-        msgDiv.style.bottom = '70px'; 
-        msgDiv.style.left = '50%';
-        msgDiv.style.transform = 'translateX(-50%)';
-        msgDiv.style.padding = '10px 20px';
-        msgDiv.style.backgroundColor = 'rgba(200, 0, 0, 0.8)'; 
-        msgDiv.style.color = 'white';
-        msgDiv.style.borderRadius = '5px';
-        msgDiv.style.zIndex = '15000';
-        msgDiv.style.transition = 'opacity 0.5s ease-out';
+        // Basic styling for the temporary message
+        Object.assign(msgDiv.style, {
+            position: 'fixed',
+            bottom: '70px', 
+            left: '50%',
+            transform: 'translateX(-50%)',
+            padding: '10px 20px',
+            backgroundColor: 'rgba(200, 0, 0, 0.8)', 
+            color: 'white',
+            borderRadius: '5px',
+            zIndex: '15000',
+            transition: 'opacity 0.5s ease-out',
+            pointerEvents: 'none' // So it doesn't interfere with clicks
+        });
         document.body.appendChild(msgDiv);
     }
     msgDiv.textContent = message;
@@ -1052,7 +1045,7 @@ function showTemporaryMessage(message, duration = 2000) {
     if (msgDiv.removeTimeout) clearTimeout(msgDiv.removeTimeout);
 
     msgDiv.hideTimeout = setTimeout(() => {
-        msgDiv.style.opacity = '0';
+        if(msgDiv) msgDiv.style.opacity = '0';
     }, duration - 500); 
     msgDiv.removeTimeout = setTimeout(() => {
         if (msgDiv && msgDiv.parentNode) {
@@ -1072,17 +1065,19 @@ function checkAABBOverlap(box1, box2, padding = 0) {
     ); 
 }
 
-// Utility function to calculate current food used by a faction (needed by UI for display and JSRTSMenu builders)
+// Utility function to calculate current food used by a faction
 function calculateCurrentFood(factionKeyToCalc) { 
-    return units.reduce((sum, u) => sum + (u.faction === factionKeyToCalc ? (FACTION_DATA[factionKeyToCalc]?.units[u.unitType]?.foodCost || 0) : 0), 0); 
+    if (!FACTION_DATA[factionKeyToCalc] || !FACTION_DATA[factionKeyToCalc].units) return 0;
+    return units.reduce((sum, u) => sum + (u.faction === factionKeyToCalc ? (FACTION_DATA[factionKeyToCalc].units[u.unitType]?.foodCost || 0) : 0), 0); 
 }
 
-// Utility function to calculate total food capacity for a faction (needed by UI for display and JSRTSMenu builders)
+// Utility function to calculate total food capacity for a faction
 function calculateFoodCapacity(factionKeyToCalc) { 
     let capacity = 0; 
+    if (!FACTION_DATA[factionKeyToCalc] || !FACTION_DATA[factionKeyToCalc].buildings) return STARTING_FOOD_CAP;
     buildings.forEach(b => { 
         if (b.faction === factionKeyToCalc && !b.isConstructing && b.hp > 0) { 
-            const data = FACTION_DATA[factionKeyToCalc]?.buildings[b.buildingType]; 
+            const data = FACTION_DATA[factionKeyToCalc].buildings[b.buildingType]; 
             if (data?.provides_food) { 
                 capacity += data.provides_food; 
             } 
