@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Emoji RTS - Modular</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body class="rtsmenu-dark-theme">
+    <div id="start-modal-overlay">
+        <div id="start-modal">
+            <h2>Choose your Faction:</h2>
+            <div>
+                <button id="human-btn">🏰 Humans</button>
+                <button id="versus-btn">🤖 vs 🤖</button>
+                <button id="zombie-btn">🏯 Zombies</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="main-menu-overlay">
+        <div id="main-menu-modal">
+            <h2>Main Menu</h2>
+            <button id="resume-game-btn">Resume Game</button>
+            <button id="editor-mode-btn">Map Editor (WIP)</button>
+            <button id="restart-game-btn">Restart Game (New Faction)</button>
+        </div>
+    </div>
+
+    <div id="viewport">
+        <div id="game-world"></div>
+    </div>
+
+    <div id="ui-panel">
+        <div id="ui-left-elements">
+            <div id="resource-display"> Wood: <span id="wood-count">0</span> Coal: <span id="coal-count">0</span> Food: <span id="food-count">0</span>/<span id="food-capacity">4</span> </div>
+            <div id="selection-info">Selected: None</div>
+        </div>
+        <div id="command-card-container">
+             <!-- JSRTSMenu for command card (command-card-menu-actual-container) will be shown here -->
+        </div>
+    </div>
+    
+    <div id="debug-panel">
+        <div>[DEBUG `]</div><hr>
+        <div>Faction: <span id="debug-faction">N/A</span></div>
+        <div>P1 Faction: <span id="debug-p1-faction">N/A</span></div>
+        <div>P2 Faction: <span id="debug-p2-faction">N/A</span></div>
+        <div>World: <span id="debug-world-size">N/A</span></div>
+        <div>Units: <span id="debug-unit-count">0</span></div>
+        <div>P1 Res: W<span id="debug-p1-wood">0</span> C<span id="debug-p1-coal">0</span> F<span id="debug-p1-food">0</span>/<span id="debug-p1-food-cap">0</span></div>
+        <div>P2 Res: W<span id="debug-p2-wood">0</span> C<span id="debug-p2-coal">0</span> F<span id="debug-p2-food">0</span>/<span id="debug-p2-food-cap">0</span></div>
+        <hr>
+        <div>Sel ID: <span id="debug-selected-id">N/A</span></div>
+        <div>Sel Type: <span id="debug-selected-type">N/A</span></div>
+        <div>Sel Faction: <span id="debug-selected-faction">N/A</span></div>
+        <div>Sel HP: <span id="debug-selected-hp">N/A</span></div>
+        <div>State: <span id="debug-selected-state">N/A</span></div>
+        <div>Target: <span id="debug-selected-target">N/A</span></div>
+        <div>Tgt Elem: <span id="debug-selected-target-elem">N/A</span></div>
+        <div>Carrying: <span id="debug-selected-carrying">N/A</span></div>
+        <div>Last Node: <span id="debug-selected-lastnode">N/A</span></div>
+        <div>AI Tasked: <span id="debug-ai-tasked">N/A</span></div>
+        <div>Build/Train Timer: <span id="debug-build-timer">N/A</span></div>
+        <div>Attack Timer: <span id="debug-attack-timer">N/A</span></div>
+        <hr>
+        <div>P1 Buildings: <span id="debug-p1-building-count">0</span></div>
+        <div>P1 Farms: <span id="debug-p1-farm-count">0</span></div>
+        <div>P2 Buildings: <span id="debug-p2-building-count">0</span></div>
+        <div>P2 Farms: <span id="debug-p2-farm-count">0</span></div>
+        <div>Resource Nodes: <span id="debug-resource-count">0</span></div>
+        <div>Constructions: <span id="debug-construction-count">0</span></div>
+   </div>
+
+    <div id="game-over-message"></div>
+
+    <!-- JSRTSMenu requires these, IDs can be customized in JSRTSMenu constructor or it creates fallbacks -->
+    <div id="context-menu-actual-container" class="js-rts-menu-base-container" role="menu" aria-orientation="vertical"></div>
+    <div id="command-card-menu-actual-container" class="js-rts-menu-base-container" role="menu" aria-orientation="vertical"></div>
+    <div id="js-rts-menu-global-tooltip" role="tooltip" aria-hidden="true"></div>
+
+    <script src="js/00_rts_menu_and_data.js"></script>
+    <script src="js/01_game_engine.js"></script>
+    <script src="js/02_main_and_ui.js"></script>
+</body>
+</html>
