@@ -1,6 +1,6 @@
 // js/game-state.js
 // Holds all dynamic state variables for the game.
-// These are modified by game_logic.js and read/used by main_ui_input.js.
+// These are modified by game-logic.js and read/used by main.js (for UI).
 
 "use strict";
 
@@ -10,14 +10,14 @@ let gameOver = false;
 let currentWorldWidth = 0; 
 let currentWorldHeight = 0;
 
-// Game Mode and Faction Setup (set by UI, used by logic)
-let gameMode = 'human_vs_ai'; // Default, will be set by start modal
-let currentGameState = 'start_modal'; // 'start_modal', 'in_game', 'main_menu', 'editor'
+// Game Mode and Faction Setup (set by UI in main.js, used by logic in game-logic.js)
+let gameMode = 'human_vs_ai'; 
+let currentGameState = 'start_modal'; 
 
-let p1FactionKey = 'human'; // Default, will be set by start modal
-let p2FactionKey = 'zombie'; // Default, will be set by start modal
-let playerFactionKey = 'human'; // The faction the human player directly controls
-let opponentFactionKey = 'zombie'; // The primary opponent for the human player
+let p1FactionKey = 'human'; 
+let p2FactionKey = 'zombie'; 
+let playerFactionKey = 'human'; 
+let opponentFactionKey = 'zombie'; 
 
 // --- Player Resources ---
 let p1Wood = 0; 
@@ -51,27 +51,53 @@ let constructionIdCounter = 0;
 let resourceIdCounter = 0; 
 
 // --- AI State ---
-let factionAiUpdateCounters = {}; // Will be { [factionKey]: count }
-let aiGlobalUpdateCounter = 0; // Used to stagger AI updates if needed
+let factionAiUpdateCounters = {}; 
+let aiGlobalUpdateCounter = 0; 
 
 // --- Game Loop Timing ---
 let lastTimestamp = 0;
 
-// --- Function to reset game state for a new game ---
-// This is called by initializeAndStartGame in main_ui_input.js
+// --- UI Interaction State (These are primarily managed in main.js but stored here for potential access by game-logic.js if ever needed) ---
+let scale = 1.0; 
+let viewOffsetX = 0; 
+let viewOffsetY = 0;
+let isPanning = false; 
+let lastPanX = 0; 
+let lastPanY = 0;
+let keysPressed = { w: false, a: false, s: false, d: false, arrowup: false, arrowleft: false, arrowdown: false, arrowright: false };
+let isDebugVisible = false;
+
+let placingBuildingType = null; 
+let placingFarm = false;
+let farmPreviewTiles = []; 
+let farmValidPlacement = false; 
+let farmGroupBox = null;
+let placementPreviewElement = null; 
+let placementData = null;
+
+
+/**
+ * Resets the core dynamic game state to initial values for a new game.
+ * Called by initializeAndStartGame in main.js.
+ * Does not reset faction choices or game mode, as those are set by the start modal.
+ */
 function resetCoreGameState() {
-    console.log("resetCoreGameState called");
+    // console.log("GAME-STATE: resetCoreGameState called");
     gameInitialized = false; 
     gameOver = false;
     // currentGameState is typically reset by the function calling this (e.g. to 'in_game' or 'start_modal')
 
-    // Faction keys and gameMode are set by the start modal, not reset here.
-
-    // Clear entity arrays
-    units.forEach(u => u.element?.remove()); // Remove elements from DOM
-    buildings.forEach(b => b.element?.remove());
-    resources.forEach(r => r.element?.remove());
-    constructions.forEach(c => c.element?.remove());
+    // Clear entity arrays and their DOM elements
+    // Ensure elements are removed from DOM to prevent memory leaks or ghost elements
+    [...units, ...buildings, ...resources, ...constructions].forEach(entity => {
+        if (entity.element && entity.element.parentNode) {
+            entity.element.remove();
+        }
+        // Special case for farms that are arrays of tiles
+        if (entity.buildingType === 'farm' && Array.isArray(entity.tileElements)) {
+            entity.tileElements.forEach(tile => tile?.remove());
+        }
+    });
 
     units = []; 
     buildings = []; 
@@ -92,15 +118,30 @@ function resetCoreGameState() {
     aiGlobalUpdateCounter = 0;
     lastTimestamp = 0;
 
-    // Resource initialization happens in initializeAndStartGame using constants
-    // console.log("Core game state reset complete.");
+    // UI-related state that should be reset
+    scale = 1.0; viewOffsetX = 0; viewOffsetY = 0;
+    isPanning = false; lastPanX = 0; lastPanY = 0;
+    keysPressed = { w: false, a: false, s: false, d: false, arrowup: false, arrowleft: false, arrowdown: false, arrowright: false };
+    // isDebugVisible is a user preference, might not reset here unless intended
+    
+    placingBuildingType = null; placingFarm = false;
+    farmPreviewTiles.forEach(tile => tile.remove()); // Ensure preview tiles are gone
+    farmPreviewTiles = []; 
+    if (placementPreviewElement) placementPreviewElement.remove();
+    placementPreviewElement = null;
+    placementData = null; farmGroupBox = null;
+
+    // Resource initialization happens in initializeAndStartGame using constants from game-data.js
+    // console.log("GAME-STATE: Core game state reset complete.");
 }
 
-// Setter functions for state that might be changed from other modules
-// This helps manage state changes more explicitly if needed, though for this structure,
-// direct modification of these global variables is also possible.
+// Simple setters if needed for more controlled state changes from other modules.
+// For this non-module structure, direct assignment also works.
 function setGameInitialized(value) { gameInitialized = value; }
 function setGameOver(value) { gameOver = value; }
-function setCurrentGameState(state) { currentGameState = state; }
+function setCurrentGameState(state) { 
+    currentGameState = state; 
+    // console.log("GAME-STATE: Current Game State set to: ", currentGameState);
+}
 function setSelectedUnit(unit) { selectedUnit = unit; }
 function setSelectedBuilding(building) { selectedBuilding = building; }
