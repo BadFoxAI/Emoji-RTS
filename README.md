@@ -2,7 +2,7 @@
 
 This is a browser-based Real-Time Strategy (RTS) game built with HTML, CSS, and vanilla JavaScript, featuring emoji-based units and buildings. The project demonstrates core RTS mechanics and a custom JavaScript-driven menu system.
 
-![Emoji-RTS](screenshot.jpg)
+![Emoji-RTS](screenshot.png)
 [Emoji-RTSo](https://emoji-rts.netlify.app/)
 
 ## Current Features
